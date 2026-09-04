@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Pistol Performance</title>
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#14171a" />
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  --ink: #14171a; --surface: #1b1f23; --surface-raised: #22262b; --line: #2b3036;
+  --paper: #edeae2; --mute: #8b9096; --mute-2: #5f656b;
+  --ring-red: #c1402f; --brass: #b1873c; --good: #6a9b6a;
+  font-family: 'Archivo', -apple-system, sans-serif;
+  background: var(--ink); color: var(--paper);
+}
+.mono { font-family: 'JetBrains Mono', monospace; }
+#root { min-height: 100vh; padding-bottom: 84px; position: relative; }
+
+.topbar { position: relative; padding: 28px 20px 22px; overflow: hidden; border-bottom: 1px solid var(--line); }
+.rings { position: absolute; top: -60px; right: -60px; width: 220px; height: 220px; opacity: 0.5; }
+.eyebrow { color: var(--mute); font-size: 13px; margin: 0 0 4px; }
+.title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin: 0; position: relative; z-index: 1; }
+
+.bottomnav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--line);
+  display: flex; overflow-x: auto; z-index: 40; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
+.navbtn { flex: 1 0 62px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none;
+  color: var(--mute-2); font-size: 10px; padding: 8px 4px 6px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.navbtn.active { color: var(--ring-red); }
+
+.content { padding: 18px 16px 20px; max-width: 520px; margin: 0 auto; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 16px; }
+.card + .card { margin-top: 12px; }
+.section-label { font-size: 12px; color: var(--mute); margin: 22px 0 10px; display: flex; align-items: baseline; justify-content: space-between; }
+.section-label:first-child { margin-top: 0; }
+
+.kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px; }
+.kpi-value { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 600; line-height: 1.1; }
+.kpi-label { color: var(--mute); font-size: 11.5px; margin-top: 4px; }
+
+.hero-score { font-family: 'JetBrains Mono', monospace; font-size: 44px; font-weight: 700; line-height: 1; }
+.hero-score span { font-size: 18px; color: var(--mute); font-weight: 500; }
+.hero-delta { font-size: 13px; display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+.trend-up { color: var(--good); } .trend-down { color: var(--ring-red); } .trend-flat { color: var(--mute); }
+
+.btn-primary { width: 100%; background: var(--ring-red); color: var(--paper); border: none; border-radius: 4px; padding: 14px;
+  font-size: 15px; font-weight: 600; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
+.btn-primary:disabled { opacity: 0.5; }
+.btn-secondary { width: 100%; background: transparent; color: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 14px;
+  font-size: 15px; font-weight: 500; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
+.btn-ghost { background: none; border: none; color: var(--mute); font-family: inherit; font-size: 13px; cursor: pointer; }
+.fab { position: fixed; right: 18px; bottom: 84px; background: var(--ring-red); color: var(--paper); border: none; border-radius: 999px;
+  width: 54px; height: 54px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(193,64,47,0.35); z-index: 41; cursor: pointer; font-size: 26px; }
+
+.label { font-size: 12px; color: var(--mute); margin-bottom: 5px; display: block; }
+.input, .select, .textarea { width: 100%; background: var(--surface-raised); border: 1px solid var(--line); border-radius: 4px;
+  padding: 11px 12px; color: var(--paper); font-family: inherit; font-size: 14.5px; }
+.textarea { resize: vertical; min-height: 60px; }
+.field { margin-bottom: 14px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.upload { border: 1.5px dashed var(--line); border-radius: 4px; padding: 34px 16px; text-align: center; color: var(--mute); cursor: pointer; }
+
+.hist-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.hist-row:last-child { border-bottom: none; }
+.hist-date { font-size: 13px; color: var(--mute); }
+.hist-score { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; }
+
+.progress-track { background: var(--surface-raised); border-radius: 3px; height: 8px; overflow: hidden; margin-top: 8px; }
+.progress-fill { background: var(--brass); height: 100%; border-radius: 3px; }
+
+.pb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pb-card { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 14px; }
+.pb-value { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; color: var(--brass); }
+.pb-label { font-size: 11.5px; color: var(--mute); margin-top: 3px; }
+.pb-meta { font-size: 11px; color: var(--mute-2); margin-top: 6px; }
+
+.gauge-wrap { display: flex; align-items: center; gap: 16px; }
+.gauge-num { font-family: 'JetBrains Mono', monospace; font-size: 30px; font-weight: 700; }
+.back-row { display: flex; align-items: center; gap: 6px; color: var(--mute); font-size: 13px; margin-bottom: 14px; cursor: pointer; }
+.steps { display: flex; gap: 4px; margin-bottom: 18px; }
+.step-dot { flex: 1; height: 3px; background: var(--line); border-radius: 2px; }
+.step-dot.done { background: var(--ring-red); }
+.empty { text-align: center; color: var(--mute); padding: 30px 10px; font-size: 13.5px; }
+.spinner { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.breakdown-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.breakdown-field label { font-size: 10.5px; color: var(--mute); display: block; margin-bottom: 4px; }
+.breakdown-field input { width: 100%; background: var(--surface-raised); border: 1px solid var(--line); border-radius: 3px;
+  color: var(--paper); font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 7px 6px; text-align: center; }
+.error-banner { background: #3a2420; border: 1px solid var(--ring-red); color: var(--paper); border-radius: 4px; padding: 12px; font-size: 13px; margin-bottom: 14px; }
+
+/* ---------- responsive: Samsung Fold cover screen vs unfolded screen, and tablets/desktop ---------- */
+/* Fold cover screen (~320-374px wide) — slightly tighter spacing so nothing crowds */
+@media (max-width: 360px) {
+  .content { padding: 14px 12px 18px; }
+  .kpi-grid { gap: 8px; }
+  .hero-score { font-size: 38px; }
+}
+
+/* Fold unfolded / small tablets (~600px+) — use the extra width instead of stretching text */
+@media (min-width: 600px) {
+  .content { max-width: 760px; }
+  .bottomnav-inner { max-width: 760px; margin: 0 auto; }
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .pb-grid { grid-template-columns: repeat(3, 1fr); }
+  .breakdown-grid { grid-template-columns: repeat(6, 1fr); }
+}
+
+/* Fold fully unfolded (~820px+) — two-column dashboard instead of one long scroll */
+@media (min-width: 820px) {
+  .content { max-width: 960px; }
+  .bottomnav-inner { max-width: 960px; }
+  .dash-wrap { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; align-items: start; }
+  .dash-wrap > .dash-left, .dash-wrap > .dash-right { min-width: 0; }
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .pb-grid { grid-template-columns: repeat(4, 1fr); }
+  .add-flow-inner { max-width: 480px; margin: 0 auto; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef } = React;
+const h = React.createElement;
+
+/* ---------- helpers ---------- */
+function fmtShort(d) { const dt = new Date(d + "T00:00:00"); return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }); }
+function fmtLong(d) { const dt = new Date(d + "T00:00:00"); return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }); }
+function avg(a) { return a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0; }
+function stdev(a) { if (a.length < 2) return 0; const m = avg(a); return Math.sqrt(avg(a.map(v => (v - m) ** 2))); }
+function round1(n) { return Math.round(n * 10) / 10; }
+function daysAgo(d, ref) { return Math.round((new Date(ref + "T00:00:00") - new Date(d + "T00:00:00")) / 86400000); }
+
+function mapRow(r) {
+  return {
+    id: r.id, date: r.session_date, sessionNumber: r.session_number, discipline: r.discipline, distance: r.distance,
+    totalShots: r.total_shots, totalScore: r.total_score, maxScore: r.max_score, xCount: r.x_count,
+    series: r.series || [], shotBreakdown: r.shot_breakdown, notes: r.notes || {}, photoKey: r.photo_key,
+  };
+}
+function deriveSession(s) {
+  return { ...s, percentage: s.maxScore ? (s.totalScore / s.maxScore) * 100 : 0, averageScore: s.totalShots ? s.totalScore / s.totalShots : 0 };
+}
+function consistencyScore(sessions) {
+  if (sessions.length < 2) return null;
+  const scores = sessions.map(s => s.totalScore);
+  const cv = avg(scores) ? stdev(scores) / avg(scores) : 0;
+  return Math.max(0, Math.min(100, Math.round(100 - cv * 400)));
+}
+function breakdownStats(b) {
+  if (!b) return null;
+  const { ten = 0, nine = 0, eight = 0, seven = 0, six = 0, fiveDown = 0 } = b;
+  const total = ten + nine + eight + seven + six + fiveDown;
+  if (!total) return null;
+  return { ten, nine, eight, seven, six, fiveDown, total, high: ten + nine, low: eight + seven + six + fiveDown, ninePlusPct: round1(((ten + nine) / total) * 100) };
+}
+
+/* ---------- tiny inline chart (no external chart library) ---------- */
+function SimpleLineChart({ points, height = 150 }) {
+  const width = 320;
+  if (points.length === 0) return h('div', { style: { color: 'var(--mute)', fontSize: 13 } }, 'No data yet');
+  const vals = points.map(p => p.value);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const pad = (max - min) * 0.15 || 5;
+  const yMin = min - pad, yMax = max + pad;
+  const stepX = points.length > 1 ? width / (points.length - 1) : 0;
+  const coords = points.map((p, i) => [i * stepX, height - ((p.value - yMin) / (yMax - yMin)) * (height - 20) - 10]);
+  const path = coords.map((c, i) => (i === 0 ? "M" : "L") + c[0].toFixed(1) + "," + c[1].toFixed(1)).join(" ");
+  return h('svg', { viewBox: `0 0 ${width} ${height}`, style: { width: '100%', height } },
+    h('path', { d: path, fill: 'none', stroke: '#c1402f', strokeWidth: 2 }),
+    coords.map((c, i) => h('circle', { key: i, cx: c[0], cy: c[1], r: 3, fill: '#c1402f' })),
+    points.map((p, i) => i % Math.ceil(points.length / 6 || 1) === 0 &&
+      h('text', { key: 'l' + i, x: coords[i][0], y: height - 2, fontSize: 9, fill: '#8b9096', textAnchor: 'middle' }, p.label))
+  );
+}
+function SimpleBarChart({ points, height = 150, colorFn }) {
+  const width = 320;
+  const vals = points.map(p => p.value);
+  const max = Math.max(...vals, 1);
+  const barW = width / points.length - 8;
+  return h('svg', { viewBox: `0 0 ${width} ${height}`, style: { width: '100%', height } },
+    points.map((p, i) => {
+      const barH = (p.value / max) * (height - 24);
+      const x = i * (width / points.length) + 4;
+      const y = height - 20 - barH;
+      return h(React.Fragment, { key: i },
+        h('rect', { x, y, width: barW, height: barH, fill: colorFn ? colorFn(i) : '#b1873c', rx: 2 }),
+        h('text', { x: x + barW / 2, y: height - 6, fontSize: 9, fill: '#8b9096', textAnchor: 'middle' }, p.label),
+        h('text', { x: x + barW / 2, y: y - 4, fontSize: 9, fill: '#edeae2', textAnchor: 'middle' }, p.value)
+      );
+    })
+  );
+}
+
+function TrendIndicator({ value, suffix = "" }) {
+  if (value === null || value === undefined || Number.isNaN(value)) return null;
+  const flat = Math.abs(value) < 0.05;
+  const up = value > 0;
+  return h('span', { className: `hero-delta ${flat ? 'trend-flat' : up ? 'trend-up' : 'trend-down'}` },
+    (flat ? '· ' : up ? '↑ ' : '↓ ') + (flat ? 'flat' : `${value > 0 ? '+' : ''}${round1(value)}${suffix}`));
+}
+
+/* ---------- API ---------- */
+const api = {
+  list: () => fetch('/api/sessions').then(r => r.json()).then(rows => rows.map(mapRow)),
+  create: (draft) => fetch('/api/sessions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(draft) }).then(r => r.json()).then(mapRow),
+  extract: (imageBase64, mediaType) => fetch('/api/extract-sheet', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ imageBase64, mediaType }) }).then(r => r.json()),
+};
+
+/* ---------- App ---------- */
+function App() {
+  const [loading, setLoading] = useState(true);
+  const [sessions, setSessions] = useState([]);
+  const [tab, setTab] = useState('dashboard');
+  const [adding, setAdding] = useState(false);
+  const [openId, setOpenId] = useState(null);
+  const [lastSavedId, setLastSavedId] = useState(null);
+  const [loadError, setLoadError] = useState(false);
+  const goals = { targetScore: 560 };
+
+  function load() {
+    setLoading(true);
+    api.list().then(rows => { setSessions(rows); setLoading(false); setLoadError(false); })
+      .catch(() => { setLoading(false); setLoadError(true); });
+  }
+  useEffect(load, []);
+
+  const sortedDesc = useMemo(() => [...sessions].sort((a, b) => a.date < b.date ? 1 : -1), [sessions]);
+  const sortedAsc = useMemo(() => [...sessions].sort((a, b) => a.date > b.date ? 1 : -1), [sessions]);
+
+  function handleSave(draft) {
+    return api.create(draft).then(saved => {
+      setSessions(prev => [...prev, saved]);
+      setLastSavedId(saved.id);
+      setAdding(false);
+      setTab('dashboard');
+    });
+  }
+
+  if (loading) return h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' } }, h('span', { className: 'mono spinner' }, '◐'));
+
+  if (adding) return h(AddSessionFlow, { onCancel: () => setAdding(false), onSave: handleSave, existingSessions: sessions });
+
+  const openSession = openId ? sessions.find(s => s.id === openId) : null;
+  if (openSession) return h(SessionDetail, { session: openSession, onBack: () => setOpenId(null), allSessions: sortedAsc });
+
+  const titles = { dashboard: 'Dashboard', history: 'Session History', progress: 'Progress & Trends', bests: 'Personal Bests', shots: 'Shot Analysis' };
+
+  return h('div', null,
+    h('div', { className: 'topbar' },
+      h('svg', { className: 'rings', viewBox: '0 0 200 200' },
+        [90, 70, 50, 30, 12].map((r, i) => h('circle', { key: r, cx: 100, cy: 100, r, fill: 'none', stroke: '#c1402f', strokeWidth: 1.5, opacity: 0.12 + i * 0.05 }))),
+      h('p', { className: 'eyebrow' }, 'Range performance'),
+      h('h1', { className: 'title' }, titles[tab])),
+    h('div', { className: 'content' },
+      loadError && h('div', { className: 'error-banner' }, "Couldn't load your sessions from the database. Refresh, or check back shortly."),
+      tab === 'dashboard' && h(Dashboard, { sessions: sortedDesc, sessionsAsc: sortedAsc, goals, lastSavedId, onOpen: setOpenId }),
+      tab === 'history' && h(HistoryTab, { sessions: sortedDesc, onOpen: setOpenId }),
+      tab === 'progress' && h(ProgressTab, { sessionsAsc: sortedAsc }),
+      tab === 'bests' && h(BestsTab, { sessions }),
+      tab === 'shots' && h(ShotAnalysisTab, { sessions: sortedDesc }),
+    ),
+    h('button', { className: 'fab', onClick: () => setAdding(true) }, '+'),
+    h('nav', { className: 'bottomnav' },
+      h('div', { className: 'bottomnav-inner', style: { display: 'flex', width: '100%' } },
+        ['dashboard', 'history', 'progress', 'bests', 'shots'].map(t =>
+          h('button', { key: t, className: `navbtn ${tab === t ? 'active' : ''}`, onClick: () => setTab(t) }, titles[t].split(' ')[0]))))
+  );
+}
+
+/* ---------- Dashboard ---------- */
+function Dashboard({ sessions, sessionsAsc, goals, lastSavedId, onOpen }) {
+  if (sessions.length === 0) return h('div', { className: 'empty' }, 'No sessions yet. Tap + to log your first one.');
+  const latest = sessions[0], prev = sessions[1];
+  const last30 = sessionsAsc.filter(s => daysAgo(s.date, latest.date) <= 30);
+  const pb = sessions.reduce((a, b) => b.totalScore > a.totalScore ? b : a, sessions[0]);
+  const avg30 = round1(avg(last30.map(s => s.totalScore)));
+  const avgAll = round1(avg(sessions.map(s => s.totalScore)));
+  const bestPct = round1(Math.max(...sessions.map(s => (s.totalScore / s.maxScore) * 100)));
+  const consistency = consistencyScore(last30.length >= 2 ? last30 : sessions);
+  const totalShots = sessions.reduce((a, s) => a + s.totalShots, 0);
+  const trendPoints = sessionsAsc.slice(-14).map(s => ({ label: fmtShort(s.date), value: s.totalScore }));
+  const saved = lastSavedId ? sessions.find(s => s.id === lastSavedId) : null;
+
+  return h(React.Fragment, null,
+    saved && h('div', { className: 'card', style: { borderColor: 'var(--brass)' } },
+      h('div', { className: 'section-label', style: { margin: 0 } }, `Just logged — ${fmtLong(saved.date)}`),
+      h('div', { className: 'hero-score', style: { fontSize: 28, marginTop: 8 } }, `${saved.totalScore} `, h('span', null, `/ ${saved.maxScore}`))),
+    h('div', { className: 'dash-wrap' },
+      h('div', { className: 'dash-left' },
+        h('div', null,
+          h('p', { className: 'eyebrow' }, `Latest session · ${fmtLong(latest.date)}`),
+          h('div', { className: 'hero-score' }, `${latest.totalScore} `, h('span', null, `/ ${latest.maxScore}`)),
+          prev && h(TrendIndicator, { value: latest.totalScore - prev.totalScore, suffix: ' vs previous' })),
+        h('div', { className: 'kpi-grid' },
+          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, pb.totalScore), h('div', { className: 'kpi-label' }, 'Personal best')),
+          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, avg30), h('div', { className: 'kpi-label' }, '30-day average')),
+          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, avgAll), h('div', { className: 'kpi-label' }, 'All-time average')),
+          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, bestPct + '%'), h('div', { className: 'kpi-label' }, 'Best score %')),
+          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, sessions.length), h('div', { className: 'kpi-label' }, 'Total sessions')),
+          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, totalShots.toLocaleString()), h('div', { className: 'kpi-label' }, 'Total shots'))),
+        h('div', { className: 'section-label' }, 'Score trend'),
+        h('div', { className: 'card' }, h(SimpleLineChart, { points: trendPoints })),
+        consistency !== null && h(React.Fragment, null,
+          h('div', { className: 'section-label' }, 'Consistency'),
+          h('div', { className: 'card gauge-wrap' },
+            h('div', { className: 'gauge-num', style: { color: consistency >= 75 ? 'var(--good)' : consistency >= 55 ? 'var(--brass)' : 'var(--ring-red)' } }, consistency),
+            h('p', { style: { margin: 0, fontSize: 13, color: 'var(--mute)' } },
+              consistency >= 75 ? 'Scores are tightly grouped session to session.' :
+              consistency >= 55 ? 'Reasonably steady, with some session-to-session variation.' :
+              'Variation between sessions is relatively high right now.')))),
+      h('div', { className: 'dash-right' },
+        h('div', { className: 'section-label', style: { marginTop: 0 } }, `Target — ${goals.targetScore}`),
+        h('div', { className: 'card' },
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--mute)' } },
+            h('span', null, `Current best ${pb.totalScore}`), h('span', null, `Target ${goals.targetScore}`)),
+          h('div', { className: 'progress-track' }, h('div', { className: 'progress-fill', style: { width: `${Math.min(100, (pb.totalScore / goals.targetScore) * 100)}%` } }))),
+        h('div', { className: 'section-label' }, 'Recent sessions'),
+        h('div', { className: 'card' }, sessions.slice(0, 5).map(s =>
+          h('div', { key: s.id, className: 'hist-row', onClick: () => onOpen(s.id) },
+            h('span', { className: 'hist-date' }, fmtShort(s.date)), h('span', { className: 'hist-score' }, s.totalScore)))))));
+}
+
+/* ---------- History ---------- */
+function HistoryTab({ sessions, onOpen }) {
+  const [sortKey, setSortKey] = useState('date');
+  if (sessions.length === 0) return h('div', { className: 'empty' }, 'No sessions logged yet.');
+  const sorted = [...sessions].sort((a, b) => sortKey === 'score' ? b.totalScore - a.totalScore : (a.date < b.date ? 1 : -1));
+  return h(React.Fragment, null,
+    h('div', { style: { display: 'flex', gap: 8, marginBottom: 14 } },
+      h('button', { className: 'btn-ghost', style: { color: sortKey === 'date' ? 'var(--paper)' : 'var(--mute)' }, onClick: () => setSortKey('date') }, 'Sort: date'),
+      h('button', { className: 'btn-ghost', style: { color: sortKey === 'score' ? 'var(--paper)' : 'var(--mute)' }, onClick: () => setSortKey('score') }, 'Sort: score')),
+    h('div', { className: 'card' }, sorted.map(s => {
+      const d = deriveSession(s);
+      return h('div', { key: s.id, className: 'hist-row', onClick: () => onOpen(s.id) },
+        h('div', null, h('div', { className: 'hist-date' }, fmtLong(s.date)),
+          h('div', { style: { fontSize: 11.5, color: 'var(--mute-2)', marginTop: 2 } }, `#${s.sessionNumber ?? '—'} · ${s.discipline || '—'} · ${s.distance || '—'}`)),
+        h('div', { style: { textAlign: 'right' } }, h('div', { className: 'hist-score' }, s.totalScore),
+          h('div', { style: { fontSize: 11, color: 'var(--mute)' } }, round1(d.percentage) + '%')));
+    })));
+}
+
+/* ---------- Progress ---------- */
+function ProgressTab({ sessionsAsc }) {
+  if (sessionsAsc.length === 0) return h('div', { className: 'empty' }, 'No sessions logged yet.');
+  const latestDate = sessionsAsc[sessionsAsc.length - 1].date;
+  const windowAvg = (days) => { const w = sessionsAsc.filter(s => daysAgo(s.date, latestDate) <= days); return w.length ? round1(avg(w.map(s => s.totalScore))) : null; };
+  const trendPoints = sessionsAsc.map(s => ({ label: fmtShort(s.date), value: s.totalScore }));
+  return h(React.Fragment, null,
+    h('div', { className: 'kpi-grid' },
+      h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, windowAvg(7) ?? '—'), h('div', { className: 'kpi-label' }, '7-day average')),
+      h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, windowAvg(30) ?? '—'), h('div', { className: 'kpi-label' }, '30-day average')),
+      h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, windowAvg(90) ?? '—'), h('div', { className: 'kpi-label' }, '90-day average')),
+      h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, round1(avg(sessionsAsc.map(s => s.totalScore)))), h('div', { className: 'kpi-label' }, 'All-time average'))),
+    h('div', { className: 'section-label' }, 'Score over time'),
+    h('div', { className: 'card' }, h(SimpleLineChart, { points: trendPoints })));
+}
+
+/* ---------- Personal bests ---------- */
+function BestsTab({ sessions }) {
+  if (sessions.length === 0) return h('div', { className: 'empty' }, 'No sessions logged yet.');
+  const bestScore = sessions.reduce((a, b) => b.totalScore > a.totalScore ? b : a, sessions[0]);
+  const bestAvg = sessions.reduce((a, b) => deriveSession(b).averageScore > deriveSession(a).averageScore ? b : a, sessions[0]);
+  const bestX = sessions.reduce((a, b) => (b.xCount || 0) > (a.xCount || 0) ? b : a, sessions[0]);
+  const bestSeries = sessions.reduce((acc, s) => { const m = Math.max(...(s.series && s.series.length ? s.series : [0])); return m > acc.value ? { value: m, session: s } : acc; }, { value: -1, session: sessions[0] });
+  function Card(v, label, s) { return h('div', { className: 'pb-card' }, h('div', { className: 'pb-value' }, v), h('div', { className: 'pb-label' }, label), s && h('div', { className: 'pb-meta' }, `${fmtLong(s.date)} · #${s.sessionNumber ?? '—'}`)); }
+  return h('div', { className: 'pb-grid' },
+    Card(bestScore.totalScore, 'Highest total score', bestScore),
+    Card(round1(deriveSession(bestAvg).averageScore), 'Highest average', bestAvg),
+    Card(bestX.xCount || 0, 'Most Xs', bestX),
+    Card(bestSeries.value, 'Best series', bestSeries.session));
+}
+
+/* ---------- Shot analysis ---------- */
+function ShotAnalysisTab({ sessions }) {
+  const withB = sessions.filter(s => breakdownStats(s.shotBreakdown));
+  const [selId, setSelId] = useState(withB[0] ? withB[0].id : null);
+  if (withB.length === 0) return h('div', { className: 'empty' }, 'No shot-value breakdown recorded yet. Fill in the optional breakdown when logging a session to see this.');
+  const selected = withB.find(s => s.id === selId) || withB[0];
+  const stats = breakdownStats(selected.shotBreakdown);
+  const chartData = [['10', stats.ten], ['9', stats.nine], ['8', stats.eight], ['7', stats.seven], ['6', stats.six], ['≤5', stats.fiveDown]].map(([label, value]) => ({ label, value }));
+  return h(React.Fragment, null,
+    h('div', { className: 'field' }, h('label', { className: 'label' }, 'Session'),
+      h('select', { className: 'select', value: selected.id, onChange: e => setSelId(Number(e.target.value)) },
+        withB.map(s => h('option', { key: s.id, value: s.id }, `${fmtLong(s.date)} · ${s.totalScore}`)))),
+    h('div', { className: 'section-label' }, `Score-value distribution — ${stats.total} shots`),
+    h('div', { className: 'card' }, h(SimpleBarChart, { points: chartData, colorFn: i => i <= 1 ? '#6a9b6a' : i <= 3 ? '#b1873c' : '#c1402f' })),
+    h('div', { className: 'card' },
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--mute)', marginBottom: 8 } },
+        h('span', null, `High-quality (10+9): ${stats.high}`), h('span', null, `Low-quality (8 & below): ${stats.low}`)),
+      h('p', { style: { margin: 0, fontSize: 13, color: 'var(--mute)' } },
+        `${stats.ninePlusPct}% of shots were 9 or 10 — ` + (stats.ninePlusPct >= 55 ? 'most points are coming from clean, high-value shots.' : "there's room to convert 8s into 9s and 10s."))));
+}
+
+/* ---------- Session detail ---------- */
+function SessionDetail({ session, onBack, allSessions }) {
+  const d = deriveSession(session);
+  const idx = allSessions.findIndex(s => s.id === session.id);
+  const prev = idx > 0 ? allSessions[idx - 1] : null;
+  const series = session.series || [];
+  const strongIdx = series.length ? series.indexOf(Math.max(...series)) : -1;
+  const weakIdx = series.length ? series.indexOf(Math.min(...series)) : -1;
+  const lines = [];
+  if (prev) lines.push(`Observed: score ${session.totalScore >= prev.totalScore ? 'improved' : 'dropped'} by ${Math.abs(round1(session.totalScore - prev.totalScore))} points versus the previous session.`);
+  lines.push('Coach discussion point: review this alongside grip, stance and fatigue notes rather than score data alone.');
+
+  return h('div', { className: 'content', style: { paddingTop: 20 } },
+    h('div', { className: 'back-row', onClick: onBack }, '← Back'),
+    h('p', { className: 'eyebrow' }, `${fmtLong(session.date)} · #${session.sessionNumber ?? '—'}`),
+    h('div', { className: 'hero-score', style: { marginTop: 6 } }, `${session.totalScore} `, h('span', null, `/ ${session.maxScore}`)),
+    h('p', { style: { color: 'var(--mute)', fontSize: 13, marginTop: 4 } },
+      `${round1(d.percentage)}% · avg ${round1(d.averageScore)} · ${session.xCount || 0} Xs · ${session.discipline || '—'} · ${session.distance || '—'}`),
+    session.photoKey && h('div', { style: { marginTop: 14 } }, h('img', { src: `/api/photo?key=${session.photoKey}`, style: { width: '100%', borderRadius: 4, border: '1px solid var(--line)' } })),
+    series.length > 0 && h(React.Fragment, null,
+      h('div', { className: 'section-label' }, 'Series'),
+      h('div', { className: 'card' }, h(SimpleBarChart, { points: series.map((v, i) => ({ label: 'S' + (i + 1), value: v })), colorFn: i => i === strongIdx ? '#6a9b6a' : i === weakIdx ? '#c1402f' : '#b1873c' }))),
+    h('div', { className: 'section-label' }, 'Session analysis'),
+    h('div', { className: 'card' }, lines.map((l, i) => h('p', { key: i, style: { margin: i === 0 ? 0 : '8px 0 0', fontSize: 13, color: 'var(--mute)', lineHeight: 1.5 } }, l))),
+    session.notes && (session.notes.feltLike || session.notes.wentWell || session.notes.improve) && h(React.Fragment, null,
+      h('div', { className: 'section-label' }, 'Notes'),
+      h('div', { className: 'card' },
+        session.notes.feltLike && h('p', { style: { margin: '0 0 8px', fontSize: 13 } }, h('strong', null, 'Felt like: '), session.notes.feltLike),
+        session.notes.wentWell && h('p', { style: { margin: '0 0 8px', fontSize: 13 } }, h('strong', null, 'Went well: '), session.notes.wentWell),
+        session.notes.improve && h('p', { style: { margin: 0, fontSize: 13 } }, h('strong', null, 'To improve: '), session.notes.improve))));
+}
+
+/* ---------- Add session flow ---------- */
+function AddSessionFlow({ onCancel, onSave, existingSessions }) {
+  const [step, setStep] = useState(1);
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [extracting, setExtracting] = useState(false);
+  const [extractNote, setExtractNote] = useState(null);
+  const [photoKey, setPhotoKey] = useState(null);
+  const [fields, setFields] = useState({ sessionNumber: '', discipline: '10m Air Pistol', distance: '10', totalShots: '60', totalScore: '', maxScore: '600', xCount: '' });
+  const [series, setSeries] = useState(['', '', '', '', '', '']);
+  const [breakdown, setBreakdown] = useState({ ten: '', nine: '', eight: '', seven: '', six: '', fiveDown: '' });
+  const [notes, setNotes] = useState({ feltLike: '', wentWell: '', improve: '' });
+  const [saving, setSaving] = useState(false);
+  const fileRef = useRef(null);
+  const existingForDate = existingSessions.filter(s => s.date === date);
+
+  function handleFile(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result.split(',')[1];
+      setExtracting(true);
+      setExtractNote(null);
+      api.extract(base64, file.type || 'image/jpeg').then(result => {
+        setExtracting(false);
+        setPhotoKey(result.photoKey);
+        if (result.extractionError === 'no_api_key') setExtractNote('Photo saved, but automatic reading isn\u2019t set up yet — enter the scores below.');
+        else if (result.extractionError) setExtractNote('Couldn\u2019t read that sheet automatically — enter the scores below.');
+        else if (result.extracted) setExtractNote('Extracted from your photo — check every field before saving.');
+        const r = result.extracted || {};
+        setFields({
+          sessionNumber: r.sessionNumber ?? '', discipline: r.discipline || '10m Air Pistol', distance: r.distance || '10',
+          totalShots: r.totalShots ?? '60', totalScore: r.totalScore ?? '', maxScore: r.maxScore ?? '600', xCount: r.xCount ?? '',
+        });
+        if (Array.isArray(r.series) && r.series.length) setSeries(r.series.map(String));
+        if ([r.tenCount, r.nineCount, r.eightCount, r.sevenCount, r.sixCount, r.fiveOrBelowCount].some(v => v != null)) {
+          setBreakdown({ ten: r.tenCount ?? '', nine: r.nineCount ?? '', eight: r.eightCount ?? '', seven: r.sevenCount ?? '', six: r.sixCount ?? '', fiveDown: r.fiveOrBelowCount ?? '' });
+        }
+        if (r.date) setDate(r.date);
+        setStep(3);
+      }).catch(() => { setExtracting(false); setExtractNote('Something went wrong reading that photo — enter the scores below.'); setStep(3); });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function updateField(k, v) { setFields(f => ({ ...f, [k]: v })); }
+  function updateSeries(i, v) { setSeries(s => { const n = [...s]; n[i] = v; return n; }); }
+  const canSave = fields.totalScore !== '' && fields.maxScore !== '' && fields.totalShots !== '';
+
+  function handleSave() {
+    const seriesNums = series.map(v => parseFloat(v)).filter(v => !Number.isNaN(v));
+    const draft = {
+      date, sessionNumber: fields.sessionNumber ? Number(fields.sessionNumber) : null, discipline: fields.discipline,
+      distance: fields.distance ? `${fields.distance} m` : '', totalShots: Number(fields.totalShots) || 0,
+      totalScore: Number(fields.totalScore) || 0, maxScore: Number(fields.maxScore) || 0, xCount: Number(fields.xCount) || 0,
+      series: seriesNums,
+      shotBreakdown: Object.values(breakdown).some(v => v !== '') ? {
+        ten: Number(breakdown.ten) || 0, nine: Number(breakdown.nine) || 0, eight: Number(breakdown.eight) || 0,
+        seven: Number(breakdown.seven) || 0, six: Number(breakdown.six) || 0, fiveDown: Number(breakdown.fiveDown) || 0,
+      } : null,
+      notes, photoKey,
+    };
+    setSaving(true);
+    onSave(draft).catch(() => setSaving(false));
+  }
+
+  return h('div', { className: 'content', style: { paddingTop: 20 } },
+    h('div', { className: 'add-flow-inner' },
+    h('div', { className: 'back-row', onClick: onCancel }, '✕ Cancel'),
+    h('h2', { style: { margin: '0 0 16px', fontSize: 19, fontWeight: 700 } }, 'Log session'),
+    h('div', { className: 'steps' }, [1, 2, 3, 4].map(n => h('div', { key: n, className: `step-dot ${step >= n ? 'done' : ''}` }))),
+
+    step === 1 && h(React.Fragment, null,
+      h('div', { className: 'field' }, h('label', { className: 'label' }, 'Practice date'),
+        h('input', { type: 'date', className: 'input', value: date, onChange: e => setDate(e.target.value) })),
+      existingForDate.length > 0 && h('p', { style: { fontSize: 12.5, color: 'var(--brass)', marginBottom: 14 } },
+        `${existingForDate.length} session(s) already logged for this date — this will be added as another one.`),
+      h('button', { className: 'btn-primary', onClick: () => setStep(2) }, 'Continue')),
+
+    step === 2 && h(React.Fragment, null,
+      h('input', { ref: fileRef, type: 'file', accept: 'image/*', capture: 'environment', style: { display: 'none' }, onChange: handleFile }),
+      extracting
+        ? h('div', { className: 'upload' }, h('div', { className: 'mono spinner', style: { fontSize: 22, marginBottom: 8 } }, '◐'), h('p', { style: { margin: 0 } }, 'Reading your score sheet…'))
+        : h('div', { className: 'upload', onClick: () => fileRef.current && fileRef.current.click() },
+            h('p', { style: { margin: '0 0 2px', color: 'var(--paper)', fontWeight: 500 } }, "Upload today's shooting sheet"),
+            h('p', { style: { margin: 0, fontSize: 12 } }, 'Photo or file — JPG, PNG, HEIC')),
+      h('div', { style: { margin: '14px 0', textAlign: 'center', color: 'var(--mute-2)', fontSize: 12 } }, 'or'),
+      h('button', { className: 'btn-secondary', onClick: () => setStep(3) }, 'Enter data manually')),
+
+    step === 3 && h(React.Fragment, null,
+      extractNote && h('p', { style: { fontSize: 12.5, color: 'var(--mute)', marginBottom: 12 } }, extractNote),
+      h('div', { className: 'row2' },
+        h('div', { className: 'field' }, h('label', { className: 'label' }, 'Session #'), h('input', { className: 'input mono', value: fields.sessionNumber, onChange: e => updateField('sessionNumber', e.target.value) })),
+        h('div', { className: 'field' }, h('label', { className: 'label' }, 'Distance (m)'), h('input', { className: 'input mono', value: fields.distance, onChange: e => updateField('distance', e.target.value) }))),
+      h('div', { className: 'field' }, h('label', { className: 'label' }, 'Discipline'), h('input', { className: 'input', value: fields.discipline, onChange: e => updateField('discipline', e.target.value) })),
+      h('div', { className: 'row2' },
+        h('div', { className: 'field' }, h('label', { className: 'label' }, 'Total shots'), h('input', { className: 'input mono', value: fields.totalShots, onChange: e => updateField('totalShots', e.target.value) })),
+        h('div', { className: 'field' }, h('label', { className: 'label' }, 'Max score'), h('input', { className: 'input mono', value: fields.maxScore, onChange: e => updateField('maxScore', e.target.value) }))),
+      h('div', { className: 'row2' },
+        h('div', { className: 'field' }, h('label', { className: 'label' }, 'Total score'), h('input', { className: 'input mono', value: fields.totalScore, onChange: e => updateField('totalScore', e.target.value) })),
+        h('div', { className: 'field' }, h('label', { className: 'label' }, 'X count'), h('input', { className: 'input mono', value: fields.xCount, onChange: e => updateField('xCount', e.target.value) }))),
+      h('button', { className: 'btn-primary', disabled: !canSave, onClick: () => setStep(4) }, 'Continue')),
+
+    step === 4 && h(React.Fragment, null,
+      h('p', { className: 'label', style: { marginBottom: 8 } }, 'Series scores (optional)'),
+      series.map((v, i) => h('div', { key: i, style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '6px 0' } },
+        h('span', { style: { fontSize: 13.5 } }, `Series ${i + 1}`), h('input', { className: 'input mono', value: v, onChange: e => updateSeries(i, e.target.value), placeholder: '—' }))),
+      h('p', { className: 'label', style: { marginTop: 18, marginBottom: 8 } }, 'Shot value breakdown (optional)'),
+      h('div', { className: 'breakdown-grid' }, [['ten', '10s'], ['nine', '9s'], ['eight', '8s'], ['seven', '7s'], ['six', '6s'], ['fiveDown', '≤5']].map(([k, label]) =>
+        h('div', { key: k, className: 'breakdown-field' }, h('label', null, label), h('input', { value: breakdown[k], onChange: e => setBreakdown({ ...breakdown, [k]: e.target.value }), placeholder: '0' })))),
+      h('div', { className: 'field', style: { marginTop: 18 } }, h('label', { className: 'label' }, "How did today's session feel?"), h('textarea', { className: 'textarea', value: notes.feltLike, onChange: e => setNotes({ ...notes, feltLike: e.target.value }) })),
+      h('div', { className: 'field' }, h('label', { className: 'label' }, 'What went well?'), h('textarea', { className: 'textarea', value: notes.wentWell, onChange: e => setNotes({ ...notes, wentWell: e.target.value }) })),
+      h('div', { className: 'field' }, h('label', { className: 'label' }, 'What needs improvement?'), h('textarea', { className: 'textarea', value: notes.improve, onChange: e => setNotes({ ...notes, improve: e.target.value }) })),
+      h('button', { className: 'btn-primary', disabled: saving, onClick: handleSave }, saving ? 'Saving…' : 'Save session'))
+  ));
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
+
+</script>
+</body>
+</html>

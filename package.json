@@ -1,0 +1,10 @@
+{
+  "name": "abbishek-pistol-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "@netlify/functions": "^2.8.1",
+    "@netlify/blobs": "^8.1.0",
+    "@netlify/database": "^1.0.0"
+  }
+}
