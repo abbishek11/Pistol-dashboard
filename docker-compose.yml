@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pistol
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: pistol
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pistol -d pistol"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://pistol:${POSTGRES_PASSWORD}@db:5432/pistol
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      STATIC_DIR: /app/static
+      PHOTO_DIR: /data/photos
+    volumes:
+      - ./index.html:/app/static/index.html:ro
+      - ./sw.js:/app/static/sw.js:ro
+      - ./manifest.json:/app/static/manifest.json:ro
+      - ./icons:/app/static/icons:ro
+      - photos:/data/photos
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  db-data:
+  photos:
+  caddy-data:
+  caddy-config:
