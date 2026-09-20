@@ -96,6 +96,68 @@ app.delete("/api/sessions", async (req, res) => {
   res.status(204).end();
 });
 
+app.get("/api/attendance", async (_req, res) => {
+  const { rows } = await pool.query("SELECT * FROM attendance ORDER BY attend_date DESC, id DESC");
+  res.json(rows);
+});
+
+app.post("/api/attendance", async (req, res) => {
+  const { date, notes } = req.body;
+  if (!date) return res.status(400).send("Missing date");
+
+  // One row per day: marking an already-attended day returns the existing row.
+  const existing = await pool.query("SELECT * FROM attendance WHERE attend_date = $1", [date]);
+  if (existing.rowCount) return res.json(existing.rows[0]);
+
+  const { rows } = await pool.query(
+    "INSERT INTO attendance (attend_date, notes) VALUES ($1,$2) RETURNING *",
+    [date, notes ?? null]
+  );
+  res.json(rows[0]);
+});
+
+app.delete("/api/attendance", async (req, res) => {
+  const id = Number(req.query.id);
+  if (!Number.isInteger(id)) return res.status(400).send("Missing or invalid id");
+  await pool.query("DELETE FROM attendance WHERE id = $1", [id]);
+  res.status(204).end();
+});
+
+app.get("/api/expenses", async (_req, res) => {
+  const { rows } = await pool.query("SELECT * FROM expenses ORDER BY spend_date DESC, id DESC");
+  res.json(rows);
+});
+
+app.post("/api/expenses", async (req, res) => {
+  const b = req.body;
+  if (!b.date || !b.category) return res.status(400).send("Missing date or category");
+  const { rows } = await pool.query(
+    `INSERT INTO expenses (
+       spend_date, category, item_name, amount, quantity, purchase_source, vendor, notes
+     )
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+     RETURNING *`,
+    [
+      b.date,
+      b.category,
+      b.itemName ?? null,
+      b.amount ?? 0,
+      b.quantity ?? null,
+      b.purchaseSource ?? null,
+      b.vendor ?? null,
+      b.notes ?? null,
+    ]
+  );
+  res.json(rows[0]);
+});
+
+app.delete("/api/expenses", async (req, res) => {
+  const id = Number(req.query.id);
+  if (!Number.isInteger(id)) return res.status(400).send("Missing or invalid id");
+  await pool.query("DELETE FROM expenses WHERE id = $1", [id]);
+  res.status(204).end();
+});
+
 app.get("/api/photo", async (req, res) => {
   const key = req.query.key;
   if (typeof key !== "string" || !PHOTO_KEY.test(key)) return res.status(400).send("Invalid key");

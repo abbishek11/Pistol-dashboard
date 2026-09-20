@@ -5,113 +5,123 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>AK Pistol Perform</title>
 <link rel="manifest" href="/manifest.json" />
-<meta name="theme-color" content="#14171a" />
+<meta name="theme-color" content="#ffffff" />
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
-  --ink: #14171a; --surface: #1b1f23; --surface-raised: #22262b; --line: #2b3036;
-  --paper: #edeae2; --mute: #8b9096; --mute-2: #5f656b;
-  --ring-red: #c1402f; --brass: #b1873c; --good: #6a9b6a;
+  --bg: #f7f8fa; --surface: #ffffff; --surface-alt: #f1f3f7; --line: #e3e7ee;
+  --text: #16191f; --text-mute: #667085; --text-faint: #98a2b3;
+
+  /* Semantic fills, plus darker variants that clear 4.5:1 as text on white. */
+  --good: #059669; --good-text: #047857;
+  --warn: #d97706; --warn-text: #92400e;
+  --bad:  #dc2626; --bad-text:  #b91c1c;
+
+  /* Overridden per tab in JS; dashboard blue is the default. */
+  --accent: #2563eb; --accent-text: #1d4ed8; --accent-soft: rgba(37,99,235,0.08);
+
+  --shadow: 0 1px 3px rgba(16,24,40,0.06);
   font-family: 'Archivo', -apple-system, sans-serif;
-  background: var(--ink); color: var(--paper);
+  background: var(--bg); color: var(--text);
 }
 .mono { font-family: 'JetBrains Mono', monospace; }
 #root { min-height: 100vh; padding-bottom: 84px; position: relative; }
 
-.topbar { position: relative; padding: 28px 20px 22px; overflow: hidden; border-bottom: 1px solid var(--line); }
+.topbar { position: relative; padding: 28px 20px 22px; overflow: hidden; min-height: 124px;
+  background: linear-gradient(180deg, var(--accent-soft) 0%, var(--surface) 100%); border-bottom: 1px solid var(--line); }
 .rings { position: absolute; top: -60px; right: -60px; width: 220px; height: 220px; opacity: 0.5; }
-.eyebrow { color: var(--mute); font-size: 13px; margin: 0 0 4px; }
+.eyebrow { color: var(--text-mute); font-size: 13px; margin: 0 0 4px; position: relative; z-index: 1; }
 .title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin: 0; position: relative; z-index: 1; }
 
 .bottomnav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--line);
   display: flex; overflow-x: auto; z-index: 40; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
-.navbtn { flex: 1 0 62px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none;
-  color: var(--mute-2); font-size: 10px; padding: 8px 4px 6px; cursor: pointer; font-family: inherit; white-space: nowrap; }
-.navbtn.active { color: var(--ring-red); }
+.navbtn { flex: 1 0 54px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none;
+  color: var(--text-faint); font-size: 10px; padding: 8px 4px 6px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.navbtn.active { color: var(--nav-accent, var(--accent-text)); font-weight: 600; }
 
 .content { padding: 18px 16px 20px; max-width: 520px; margin: 0 auto; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); }
 .card + .card { margin-top: 12px; }
-.section-label { font-size: 12px; color: var(--mute); margin: 22px 0 10px; display: flex; align-items: baseline; justify-content: space-between; }
+.section-label { font-size: 12px; color: var(--text-mute); margin: 22px 0 10px; display: flex; align-items: baseline; justify-content: space-between; }
 .section-label:first-child { margin-top: 0; }
 
 .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
-.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px; }
-.kpi-value { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 600; line-height: 1.1; }
-.kpi-label { color: var(--mute); font-size: 11.5px; margin-top: 4px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); }
+.kpi-value { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 600; line-height: 1.1; color: var(--accent-text); }
+.kpi-label { color: var(--text-mute); font-size: 11.5px; margin-top: 4px; }
 
 .hero-score { font-family: 'JetBrains Mono', monospace; font-size: 44px; font-weight: 700; line-height: 1; }
-.hero-score span { font-size: 18px; color: var(--mute); font-weight: 500; }
+.hero-score span { font-size: 18px; color: var(--text-mute); font-weight: 500; }
 .hero-delta { font-size: 13px; display: flex; align-items: center; gap: 4px; margin-top: 6px; }
-.trend-up { color: var(--good); } .trend-down { color: var(--ring-red); } .trend-flat { color: var(--mute); }
+.trend-up { color: var(--good-text); } .trend-down { color: var(--bad-text); } .trend-flat { color: var(--text-mute); }
 
-.btn-primary { width: 100%; background: var(--ring-red); color: var(--paper); border: none; border-radius: 4px; padding: 14px;
+.btn-primary { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 14px;
   font-size: 15px; font-weight: 600; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
-.btn-primary:disabled { opacity: 0.5; }
-.btn-secondary { width: 100%; background: transparent; color: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 14px;
+.btn-primary:disabled { opacity: 0.45; }
+.btn-secondary { width: 100%; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 14px;
   font-size: 15px; font-weight: 500; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
-.btn-ghost { background: none; border: none; color: var(--mute); font-family: inherit; font-size: 13px; cursor: pointer; }
-.fab { position: fixed; right: 18px; bottom: 84px; background: var(--ring-red); color: var(--paper); border: none; border-radius: 999px;
-  width: 54px; height: 54px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(193,64,47,0.35); z-index: 41; cursor: pointer; font-size: 26px; }
+.btn-ghost { background: none; border: none; color: var(--text-mute); font-family: inherit; font-size: 13px; cursor: pointer; }
+.fab { position: fixed; right: 18px; bottom: 84px; background: var(--accent); color: #fff; border: none; border-radius: 999px;
+  width: 54px; height: 54px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(16,24,40,0.22); z-index: 41; cursor: pointer; font-size: 26px; }
 
-.label { font-size: 12px; color: var(--mute); margin-bottom: 5px; display: block; }
-.input, .select, .textarea { width: 100%; background: var(--surface-raised); border: 1px solid var(--line); border-radius: 4px;
-  padding: 11px 12px; color: var(--paper); font-family: inherit; font-size: 14.5px; }
+.label { font-size: 12px; color: var(--text-mute); margin-bottom: 5px; display: block; }
+.input, .select, .textarea { width: 100%; background: var(--surface-alt); border: 1px solid var(--line); border-radius: 10px;
+  padding: 11px 12px; color: var(--text); font-family: inherit; font-size: 14.5px; }
 .textarea { resize: vertical; min-height: 60px; }
 .field { margin-bottom: 14px; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-.upload { border: 1.5px dashed var(--line); border-radius: 4px; padding: 34px 16px; text-align: center; color: var(--mute); cursor: pointer; }
+.upload { border: 1.5px dashed var(--line); background: var(--surface); border-radius: 12px; padding: 34px 16px; text-align: center; color: var(--text-mute); cursor: pointer; }
 
 .hist-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
 .hist-row:last-child { border-bottom: none; }
-.hist-date { font-size: 13px; color: var(--mute); }
+.hist-date { font-size: 13px; color: var(--text-mute); }
 .hist-score { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; }
 
-.progress-track { background: var(--surface-raised); border-radius: 3px; height: 8px; overflow: hidden; margin-top: 8px; }
-.progress-fill { background: var(--brass); height: 100%; border-radius: 3px; }
+.progress-track { background: var(--surface-alt); border-radius: 999px; height: 8px; overflow: hidden; margin-top: 8px; }
+.progress-fill { background: var(--accent); height: 100%; border-radius: 999px; }
 
 .pb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.pb-card { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 14px; }
-.pb-value { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; color: var(--brass); }
-.pb-label { font-size: 11.5px; color: var(--mute); margin-top: 3px; }
-.pb-meta { font-size: 11px; color: var(--mute-2); margin-top: 6px; }
+.pb-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); }
+.pb-value { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; color: var(--accent-text); }
+.pb-label { font-size: 11.5px; color: var(--text-mute); margin-top: 3px; }
+.pb-meta { font-size: 11px; color: var(--text-faint); margin-top: 6px; }
 
 .gauge-wrap { display: flex; align-items: center; gap: 16px; }
 .gauge-num { font-family: 'JetBrains Mono', monospace; font-size: 30px; font-weight: 700; }
-.back-row { display: flex; align-items: center; gap: 6px; color: var(--mute); font-size: 13px; margin-bottom: 14px; cursor: pointer; }
+.back-row { display: flex; align-items: center; gap: 6px; color: var(--text-mute); font-size: 13px; margin-bottom: 14px; cursor: pointer; }
 .steps { display: flex; gap: 4px; margin-bottom: 18px; }
 .step-dot { flex: 1; height: 3px; background: var(--line); border-radius: 2px; }
-.step-dot.done { background: var(--ring-red); }
-.empty { text-align: center; color: var(--mute); padding: 30px 10px; font-size: 13.5px; }
+.step-dot.done { background: var(--accent); }
+.empty { text-align: center; color: var(--text-mute); padding: 30px 10px; font-size: 13.5px; }
 .spinner { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .breakdown-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.breakdown-field label { font-size: 10.5px; color: var(--mute); display: block; margin-bottom: 4px; }
-.breakdown-field input { width: 100%; background: var(--surface-raised); border: 1px solid var(--line); border-radius: 3px;
-  color: var(--paper); font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 7px 6px; text-align: center; }
-.error-banner { background: #3a2420; border: 1px solid var(--ring-red); color: var(--paper); border-radius: 4px; padding: 12px; font-size: 13px; margin-bottom: 14px; }
+.breakdown-field label { font-size: 10.5px; color: var(--text-mute); display: block; margin-bottom: 4px; }
+.breakdown-field input { width: 100%; background: var(--surface-alt); border: 1px solid var(--line); border-radius: 8px;
+  color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 7px 6px; text-align: center; }
+.error-banner { background: #fef2f2; border: 1px solid #fecaca; color: var(--bad-text); border-radius: 10px; padding: 12px; font-size: 13px; margin-bottom: 14px; }
 
 /* ---------- shot calculator ---------- */
-.calc-overlay { position: fixed; inset: 0; background: rgba(10,12,14,0.86); z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
-.calc-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px 10px 0 0; width: 100%; max-width: 520px;
+.calc-overlay { position: fixed; inset: 0; background: rgba(16,24,40,0.55); z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
+.calc-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px 16px 0 0; width: 100%; max-width: 520px;
   padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); max-height: 92vh; overflow-y: auto; }
-@media (min-width: 600px) { .calc-overlay { align-items: center; } .calc-panel { border-radius: 10px; } }
+@media (min-width: 600px) { .calc-overlay { align-items: center; } .calc-panel { border-radius: 16px; } }
 .calc-total { font-family: 'JetBrains Mono', monospace; font-size: 38px; font-weight: 700; line-height: 1; }
 .calc-shots { display: flex; flex-wrap: wrap; gap: 5px; margin: 12px 0; min-height: 30px; }
-.calc-chip { background: var(--surface-raised); border: 1px solid var(--line); border-radius: 3px; padding: 4px 9px;
+.calc-chip { background: var(--surface-alt); border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px;
   font-family: 'JetBrains Mono', monospace; font-size: 13px; }
-.calc-chip.x { border-color: var(--brass); color: var(--brass); }
+.calc-chip.x { border-color: var(--warn); color: var(--warn-text); }
 .calc-pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.calc-key { background: var(--surface-raised); border: 1px solid var(--line); border-radius: 6px; color: var(--paper);
-  font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 600; padding: 15px 0; cursor: pointer; }
-.calc-key:active { background: var(--ring-red); }
+/* Used at the range, sometimes in bright sun: keep keys large and high contrast. */
+.calc-key { background: var(--surface-alt); border: 1px solid var(--line); border-radius: 10px; color: var(--text);
+  font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; padding: 15px 0; cursor: pointer; }
+.calc-key:active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .calc-key.wide { grid-column: span 2; font-family: 'Archivo', sans-serif; font-size: 14px; font-weight: 600; }
-.calc-key.x { border-color: var(--brass); color: var(--brass); }
-
+.calc-key.x { border-color: var(--warn); color: var(--warn-text); }
 
 /* ---------- portrait watermark ---------- */
 .hero-portrait {
@@ -119,36 +129,82 @@ body {
   right: -14px;
   bottom: -18px;
   height: 148px;
-  opacity: 0.30;
+  opacity: 0.20;
   pointer-events: none;
   z-index: 0;
-  filter: grayscale(0.25) contrast(1.05);
   mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
 }
-.topbar { min-height: 124px; }
 @media (min-width: 600px) { .hero-portrait { height: 180px; right: 4%; } }
 
 /* ---------- shot tally summary ---------- */
 .tally-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
-.tally-cell { text-align: center; background: var(--surface-raised); border: 1px solid var(--line); border-radius: 4px; padding: 9px 2px; }
+.tally-cell { text-align: center; background: var(--surface-alt); border: 1px solid var(--line); border-radius: 8px; padding: 9px 2px; }
 .tally-num { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; line-height: 1; }
-.tally-lab { font-size: 10.5px; color: var(--mute); margin-top: 3px; }
+.tally-lab { font-size: 10.5px; color: var(--text-mute); margin-top: 3px; }
 
 /* ---------- sheet gallery ---------- */
 .gal-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 @media (min-width: 600px) { .gal-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 820px) { .gal-grid { grid-template-columns: repeat(4, 1fr); } }
-.gal-item { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; cursor: pointer; }
-.gal-item img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: var(--surface-raised); }
+.gal-item { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; cursor: pointer; box-shadow: var(--shadow); }
+.gal-item img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: var(--surface-alt); }
 .gal-meta { padding: 7px 8px; }
 .gal-score { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; }
-.gal-date { font-size: 10.5px; color: var(--mute); margin-top: 1px; }
-.lightbox { position: fixed; inset: 0; background: rgba(8,9,11,0.95); z-index: 70; display: flex; flex-direction: column;
+.gal-date { font-size: 10.5px; color: var(--text-mute); margin-top: 1px; }
+.lightbox { position: fixed; inset: 0; background: rgba(16,24,40,0.92); z-index: 70; display: flex; flex-direction: column;
   align-items: center; justify-content: center; padding: 20px; }
-.lightbox img { max-width: 100%; max-height: 78vh; border-radius: 4px; }
+.lightbox img { max-width: 100%; max-height: 78vh; border-radius: 8px; }
+.lightbox .btn-ghost { color: #fff; }
 .thumb-strip { display: flex; gap: 8px; overflow-x: auto; margin-top: 10px; }
-.thumb-strip img { height: 90px; border-radius: 4px; border: 1px solid var(--line); cursor: pointer; }
+.thumb-strip img { height: 90px; border-radius: 8px; border: 1px solid var(--line); cursor: pointer; }
+
+/* ---------- training log: segmented control ---------- */
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--surface-alt);
+  border: 1px solid var(--line); border-radius: 10px; padding: 4px; margin-bottom: 16px; }
+.seg button { background: none; border: none; border-radius: 8px; padding: 9px 4px; font-family: inherit;
+  font-size: 13px; font-weight: 600; color: var(--text-mute); cursor: pointer; }
+.seg button.on { background: var(--surface); color: var(--accent-text); box-shadow: var(--shadow); }
+
+/* ---------- training log: attendance calendar ---------- */
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cal-month { font-size: 15px; font-weight: 700; }
+.cal-nav { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; width: 34px; height: 34px;
+  font-size: 16px; color: var(--text); cursor: pointer; font-family: inherit; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.cal-dow { text-align: center; font-size: 10.5px; color: var(--text-faint); padding-bottom: 4px; }
+.cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 9px;
+  border: 1px solid var(--line); background: var(--surface); font-family: 'JetBrains Mono', monospace;
+  font-size: 13px; color: var(--text); cursor: pointer; padding: 0; }
+.cal-day.blank { border: none; background: none; cursor: default; }
+.cal-day.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.cal-day.today { box-shadow: 0 0 0 2px var(--accent-soft), 0 0 0 1px var(--accent); }
+.cal-day:disabled { opacity: 0.45; cursor: default; }
+
+/* ---------- training log: spending ---------- */
+.cat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 4px; }
+@media (min-width: 600px) { .cat-grid { grid-template-columns: repeat(5, 1fr); } }
+.cat-btn { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 8px;
+  font-family: inherit; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; text-align: center; }
+.cat-btn.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); }
+.cat-dot { display: inline-block; width: 9px; height: 9px; border-radius: 999px; margin-right: 7px; flex: 0 0 auto; }
+.spend-row { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.spend-row:last-child { border-bottom: none; }
+.spend-main { flex: 1; min-width: 0; }
+.spend-name { font-size: 13.5px; font-weight: 500; }
+.spend-sub { font-size: 11.5px; color: var(--text-mute); margin-top: 2px; }
+.spend-amt { font-family: 'JetBrains Mono', monospace; font-size: 14.5px; font-weight: 600; white-space: nowrap; }
+.date-head { font-size: 11.5px; color: var(--text-faint); margin: 16px 0 2px; font-weight: 600; }
+.tag { display: inline-block; font-size: 10px; border: 1px solid var(--line); border-radius: 999px;
+  padding: 1px 7px; color: var(--text-mute); margin-left: 6px; }
+
+/* ---------- training log: summary breakdown ---------- */
+.bd-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+.bd-label { font-size: 13px; flex: 0 0 34%; display: flex; align-items: center; }
+.bd-track { flex: 1; background: var(--surface-alt); border-radius: 999px; height: 9px; overflow: hidden; }
+.bd-fill { height: 100%; border-radius: 999px; }
+.bd-amt { font-family: 'JetBrains Mono', monospace; font-size: 13px; white-space: nowrap; }
+.money-big { font-family: 'JetBrains Mono', monospace; font-size: 38px; font-weight: 700; line-height: 1; color: var(--accent-text); }
 
 /* ---------- responsive: Samsung Fold cover screen vs unfolded screen, and tablets/desktop ---------- */
 /* Fold cover screen (~320-374px wide) — slightly tighter spacing so nothing crowds */
@@ -156,6 +212,8 @@ body {
   .content { padding: 14px 12px 18px; }
   .kpi-grid { gap: 8px; }
   .hero-score { font-size: 38px; }
+  .navbtn { font-size: 9.5px; flex: 1 0 48px; padding: 8px 2px 6px; }
+  .money-big { font-size: 32px; }
 }
 
 /* Fold unfolded / small tablets (~600px+) — use the extra width instead of stretching text */
@@ -198,6 +256,66 @@ function stdev(a) { if (a.length < 2) return 0; const m = avg(a); return Math.sq
 function round1(n) { return Math.round(n * 10) / 10; }
 function daysAgo(d, ref) { return Math.round((new Date(ref + "T00:00:00") - new Date(d + "T00:00:00")) / 86400000); }
 
+/* ---------- training log helpers ---------- */
+// Postgres returns NUMERIC as a string, so amounts are coerced on the way in.
+function mapExpense(r) {
+  return {
+    id: r.id, date: r.spend_date, category: r.category, itemName: r.item_name,
+    amount: Number(r.amount) || 0, quantity: r.quantity == null ? null : Number(r.quantity),
+    purchaseSource: r.purchase_source, vendor: r.vendor, notes: r.notes,
+  };
+}
+function mapAttendance(r) { return { id: r.id, date: r.attend_date, notes: r.notes }; }
+
+const CATEGORIES = [
+  { key: 'class_fee', label: 'Class fee', color: '#2563eb' },
+  { key: 'accessory', label: 'Accessory', color: '#7c3aed' },
+  { key: 'pellets', label: 'Pellets', color: '#059669' },
+  { key: 'cylinder_refill', label: 'Cylinder refill', color: '#0891b2' },
+  { key: 'sheets', label: 'Sheets', color: '#d97706' },
+];
+function categoryOf(key) { return CATEGORIES.find(c => c.key === key) || { key, label: key, color: '#98a2b3' }; }
+
+// ₹1,250 — paise only shown when the amount actually has them.
+function money(n) {
+  const v = Number(n) || 0;
+  const hasPaise = Math.round(v * 100) % 100 !== 0;
+  return '₹' + v.toLocaleString('en-IN', {
+    minimumFractionDigits: hasPaise ? 2 : 0, maximumFractionDigits: hasPaise ? 2 : 0,
+  });
+}
+function monthKey(dateStr) { return (dateStr || '').slice(0, 7); }
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+function monthLabel(key) {
+  const d = new Date(key + '-01T00:00:00');
+  return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+}
+function shiftMonth(key, delta) {
+  const [y, m] = key.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+function plural(n, word) { return `${n} ${word}${n === 1 ? '' : 's'}`; }
+
+/* ---------- per-tab theming ----------
+   `accent` fills shapes; `text` is the darkened variant used wherever the colour
+   sits on white as text, so every pairing clears WCAG AA (4.5:1). */
+const TAB_THEME = {
+  dashboard: { accent: '#2563eb', text: '#1d4ed8', soft: 'rgba(37,99,235,0.08)' },
+  history:   { accent: '#7c3aed', text: '#6d28d9', soft: 'rgba(124,58,237,0.08)' },
+  progress:  { accent: '#059669', text: '#047857', soft: 'rgba(5,150,105,0.08)' },
+  bests:     { accent: '#d97706', text: '#92400e', soft: 'rgba(217,119,6,0.08)' },
+  shots:     { accent: '#dc2626', text: '#b91c1c', soft: 'rgba(220,38,38,0.08)' },
+  sheets:    { accent: '#0891b2', text: '#155e75', soft: 'rgba(8,145,178,0.08)' },
+  training:  { accent: '#db2777', text: '#be185d', soft: 'rgba(219,39,119,0.08)' },
+};
+const NAV_TABS = ['dashboard', 'history', 'progress', 'bests', 'shots', 'sheets', 'training'];
+// Short labels so seven tabs stay readable on a narrow phone.
+const NAV_LABELS = {
+  dashboard: 'Home', history: 'History', progress: 'Progress',
+  bests: 'Bests', shots: 'Shots', sheets: 'Sheets', training: 'Training',
+};
+
 function mapRow(r) {
   return {
     id: r.id, date: r.session_date, sessionNumber: r.session_number, discipline: r.discipline, distance: r.distance,
@@ -236,7 +354,7 @@ function breakdownStats(b) {
 /* ---------- tiny inline chart (no external chart library) ---------- */
 function SimpleLineChart({ points, height = 150 }) {
   const width = 320;
-  if (points.length === 0) return h('div', { style: { color: 'var(--mute)', fontSize: 13 } }, 'No data yet');
+  if (points.length === 0) return h('div', { style: { color: 'var(--text-mute)', fontSize: 13 } }, 'No data yet');
   const vals = points.map(p => p.value);
   const min = Math.min(...vals), max = Math.max(...vals);
   const pad = (max - min) * 0.15 || 5;
@@ -245,10 +363,10 @@ function SimpleLineChart({ points, height = 150 }) {
   const coords = points.map((p, i) => [i * stepX, height - ((p.value - yMin) / (yMax - yMin)) * (height - 20) - 10]);
   const path = coords.map((c, i) => (i === 0 ? "M" : "L") + c[0].toFixed(1) + "," + c[1].toFixed(1)).join(" ");
   return h('svg', { viewBox: `0 0 ${width} ${height}`, style: { width: '100%', height } },
-    h('path', { d: path, fill: 'none', stroke: '#c1402f', strokeWidth: 2 }),
-    coords.map((c, i) => h('circle', { key: i, cx: c[0], cy: c[1], r: 3, fill: '#c1402f' })),
+    h('path', { d: path, fill: 'none', stroke: 'var(--accent)', strokeWidth: 2 }),
+    coords.map((c, i) => h('circle', { key: i, cx: c[0], cy: c[1], r: 3, fill: 'var(--accent)' })),
     points.map((p, i) => i % Math.ceil(points.length / 6 || 1) === 0 &&
-      h('text', { key: 'l' + i, x: coords[i][0], y: height - 2, fontSize: 9, fill: '#8b9096', textAnchor: 'middle' }, p.label))
+      h('text', { key: 'l' + i, x: coords[i][0], y: height - 2, fontSize: 9, fill: 'var(--text-faint)', textAnchor: 'middle' }, p.label))
   );
 }
 function SimpleBarChart({ points, height = 150, colorFn }) {
@@ -262,9 +380,9 @@ function SimpleBarChart({ points, height = 150, colorFn }) {
       const x = i * (width / points.length) + 4;
       const y = height - 20 - barH;
       return h(React.Fragment, { key: i },
-        h('rect', { x, y, width: barW, height: barH, fill: colorFn ? colorFn(i) : '#b1873c', rx: 2 }),
-        h('text', { x: x + barW / 2, y: height - 6, fontSize: 9, fill: '#8b9096', textAnchor: 'middle' }, p.label),
-        h('text', { x: x + barW / 2, y: y - 4, fontSize: 9, fill: '#edeae2', textAnchor: 'middle' }, p.value)
+        h('rect', { x, y, width: barW, height: barH, fill: colorFn ? colorFn(i) : 'var(--accent)', rx: 3 }),
+        h('text', { x: x + barW / 2, y: height - 6, fontSize: 9, fill: 'var(--text-faint)', textAnchor: 'middle' }, p.label),
+        h('text', { x: x + barW / 2, y: y - 4, fontSize: 9, fill: 'var(--text-mute)', textAnchor: 'middle' }, p.value)
       );
     })
   );
@@ -283,6 +401,14 @@ const api = {
   list: () => fetch('/api/sessions').then(r => r.json()).then(rows => rows.map(mapRow)),
   create: (draft) => fetch('/api/sessions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(draft) }).then(r => r.json()).then(mapRow),
   extract: (imageBase64, mediaType) => fetch('/api/extract-sheet', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ imageBase64, mediaType }) }).then(r => r.json()),
+
+  listAttendance: () => fetch('/api/attendance').then(r => r.json()).then(rows => rows.map(mapAttendance)),
+  addAttendance: (date) => fetch('/api/attendance', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ date }) }).then(r => r.json()).then(mapAttendance),
+  removeAttendance: (id) => fetch(`/api/attendance?id=${id}`, { method: 'DELETE' }),
+
+  listExpenses: () => fetch('/api/expenses').then(r => r.json()).then(rows => rows.map(mapExpense)),
+  addExpense: (draft) => fetch('/api/expenses', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(draft) }).then(r => r.json()).then(mapExpense),
+  removeExpense: (id) => fetch(`/api/expenses?id=${id}`, { method: 'DELETE' }),
 };
 
 /* ---------- App ---------- */
@@ -322,13 +448,14 @@ function App() {
   const openSession = openId ? sessions.find(s => s.id === openId) : null;
   if (openSession) return h(SessionDetail, { session: openSession, onBack: () => setOpenId(null), allSessions: sortedAsc });
 
-  const titles = { dashboard: 'Dashboard', history: 'Session History', progress: 'Progress & Trends', bests: 'Personal Bests', shots: 'Shot Analysis', sheets: 'Sheet Photos' };
+  const titles = { dashboard: 'Dashboard', history: 'Session History', progress: 'Progress & Trends', bests: 'Personal Bests', shots: 'Shot Analysis', sheets: 'Sheet Photos', training: 'Training Log' };
+  const theme = TAB_THEME[tab] || TAB_THEME.dashboard;
 
-  return h('div', null,
+  return h('div', { style: { '--accent': theme.accent, '--accent-text': theme.text, '--accent-soft': theme.soft } },
     h('div', { className: 'topbar' },
       tab === 'dashboard' && h('img', { className: 'hero-portrait', src: '/hero.webp', alt: '', 'aria-hidden': 'true' }),
       h('svg', { className: 'rings', viewBox: '0 0 200 200' },
-        [90, 70, 50, 30, 12].map((r, i) => h('circle', { key: r, cx: 100, cy: 100, r, fill: 'none', stroke: '#c1402f', strokeWidth: 1.5, opacity: 0.12 + i * 0.05 }))),
+        [90, 70, 50, 30, 12].map((r, i) => h('circle', { key: r, cx: 100, cy: 100, r, fill: 'none', stroke: 'var(--accent)', strokeWidth: 1.5, opacity: 0.10 + i * 0.04 }))),
       h('p', { className: 'eyebrow' }, tab === 'dashboard' ? 'AK Pistol Perform' : 'Range performance'),
       h('h1', { className: 'title' }, tab === 'dashboard' ? 'Welcome Abbishek' : titles[tab])),
     h('div', { className: 'content' },
@@ -339,13 +466,16 @@ function App() {
       tab === 'bests' && h(BestsTab, { sessions }),
       tab === 'shots' && h(ShotAnalysisTab, { sessions: sortedDesc }),
       tab === 'sheets' && h(GalleryTab, { sessions: sortedDesc, onOpenSession: setOpenId }),
+      tab === 'training' && h(TrainingTab, { sessions: sortedDesc }),
     ),
-    h('button', { className: 'fab', onClick: () => setAdding(true) }, '+'),
+    tab !== 'training' && h('button', { className: 'fab', onClick: () => setAdding(true) }, '+'),
     h('nav', { className: 'bottomnav' },
       h('div', { className: 'bottomnav-inner', style: { display: 'flex', width: '100%' } },
-        ['dashboard', 'history', 'progress', 'bests', 'shots', 'sheets'].map(t =>
-          h('button', { key: t, className: `navbtn ${tab === t ? 'active' : ''}`, onClick: () => setTab(t) },
-            t === 'sheets' ? 'Sheets' : titles[t].split(' ')[0]))))
+        NAV_TABS.map(t =>
+          h('button', {
+            key: t, className: `navbtn ${tab === t ? 'active' : ''}`, onClick: () => setTab(t),
+            style: tab === t ? { '--nav-accent': TAB_THEME[t].text } : null,
+          }, NAV_LABELS[t]))))
   );
 }
 
@@ -369,7 +499,7 @@ function Dashboard({ sessions, sessionsAsc, goals, lastSavedId, onOpen }) {
   const saved = lastSavedId ? sessions.find(s => s.id === lastSavedId) : null;
 
   return h(React.Fragment, null,
-    saved && h('div', { className: 'card', style: { borderColor: 'var(--brass)' } },
+    saved && h('div', { className: 'card', style: { borderColor: 'var(--warn-text)' } },
       h('div', { className: 'section-label', style: { margin: 0 } }, `Just logged — ${fmtLong(saved.date)}`),
       h('div', { className: 'hero-score', style: { fontSize: 28, marginTop: 8 } }, `${saved.totalScore} `, h('span', null, `/ ${saved.maxScore}`))),
     h('div', { className: 'dash-wrap' },
@@ -377,7 +507,7 @@ function Dashboard({ sessions, sessionsAsc, goals, lastSavedId, onOpen }) {
         h('div', null,
           h('p', { className: 'eyebrow' }, `Latest session · ${fmtLong(latest.date)}`),
           h('div', { className: 'hero-score' }, `${latest.totalScore} `, h('span', null, `/ ${latest.maxScore}`)),
-          latestPerSheet !== null && h('p', { style: { fontSize: 13, color: 'var(--mute)', margin: '6px 0 0' } },
+          latestPerSheet !== null && h('p', { style: { fontSize: 13, color: 'var(--text-mute)', margin: '6px 0 0' } },
             `${sheetScores(latest).length} sheets · ${latestPerSheet} avg per sheet`),
           latestPerSheet !== null && prevPerSheet !== null &&
             h(TrendIndicator, { value: round1(latestPerSheet - prevPerSheet), suffix: ' per sheet vs previous' })),
@@ -393,15 +523,15 @@ function Dashboard({ sessions, sessionsAsc, goals, lastSavedId, onOpen }) {
         consistency !== null && h(React.Fragment, null,
           h('div', { className: 'section-label' }, 'Consistency'),
           h('div', { className: 'card gauge-wrap' },
-            h('div', { className: 'gauge-num', style: { color: consistency >= 75 ? 'var(--good)' : consistency >= 55 ? 'var(--brass)' : 'var(--ring-red)' } }, consistency),
-            h('p', { style: { margin: 0, fontSize: 13, color: 'var(--mute)' } },
+            h('div', { className: 'gauge-num', style: { color: consistency >= 75 ? 'var(--good-text)' : consistency >= 55 ? 'var(--warn-text)' : 'var(--bad-text)' } }, consistency),
+            h('p', { style: { margin: 0, fontSize: 13, color: 'var(--text-mute)' } },
               consistency >= 75 ? 'Scores are tightly grouped session to session.' :
               consistency >= 55 ? 'Reasonably steady, with some session-to-session variation.' :
               'Variation between sessions is relatively high right now.')))),
       h('div', { className: 'dash-right' },
         h('div', { className: 'section-label', style: { marginTop: 0 } }, `Target — ${goals.targetScore}`),
         h('div', { className: 'card' },
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--mute)' } },
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--text-mute)' } },
             h('span', null, `Current best ${pb.totalScore}`), h('span', null, `Target ${goals.targetScore}`)),
           h('div', { className: 'progress-track' }, h('div', { className: 'progress-fill', style: { width: `${Math.min(100, (pb.totalScore / goals.targetScore) * 100)}%` } }))),
         h('div', { className: 'section-label' }, 'Recent sessions'),
@@ -417,15 +547,15 @@ function HistoryTab({ sessions, onOpen }) {
   const sorted = [...sessions].sort((a, b) => sortKey === 'score' ? b.totalScore - a.totalScore : (a.date < b.date ? 1 : -1));
   return h(React.Fragment, null,
     h('div', { style: { display: 'flex', gap: 8, marginBottom: 14 } },
-      h('button', { className: 'btn-ghost', style: { color: sortKey === 'date' ? 'var(--paper)' : 'var(--mute)' }, onClick: () => setSortKey('date') }, 'Sort: date'),
-      h('button', { className: 'btn-ghost', style: { color: sortKey === 'score' ? 'var(--paper)' : 'var(--mute)' }, onClick: () => setSortKey('score') }, 'Sort: score')),
+      h('button', { className: 'btn-ghost', style: { color: sortKey === 'date' ? 'var(--text)' : 'var(--text-mute)' }, onClick: () => setSortKey('date') }, 'Sort: date'),
+      h('button', { className: 'btn-ghost', style: { color: sortKey === 'score' ? 'var(--text)' : 'var(--text-mute)' }, onClick: () => setSortKey('score') }, 'Sort: score')),
     h('div', { className: 'card' }, sorted.map(s => {
       const d = deriveSession(s);
       return h('div', { key: s.id, className: 'hist-row', onClick: () => onOpen(s.id) },
         h('div', null, h('div', { className: 'hist-date' }, fmtLong(s.date)),
-          h('div', { style: { fontSize: 11.5, color: 'var(--mute-2)', marginTop: 2 } }, `${sheetList(s).length || '—'} sheets · ${s.totalShots || 0} shots · ${s.distance || '—'}`)),
+          h('div', { style: { fontSize: 11.5, color: 'var(--text-faint)', marginTop: 2 } }, `${sheetList(s).length || '—'} sheets · ${s.totalShots || 0} shots · ${s.distance || '—'}`)),
         h('div', { style: { textAlign: 'right' } }, h('div', { className: 'hist-score' }, s.totalScore),
-          h('div', { style: { fontSize: 11, color: 'var(--mute)' } }, round1(d.percentage) + '%')));
+          h('div', { style: { fontSize: 11, color: 'var(--text-mute)' } }, round1(d.percentage) + '%')));
     })));
 }
 
@@ -517,9 +647,9 @@ function ProgressTab({ sessionsAsc }) {
       h(SimpleBarChart, {
         points: shown.map(p => ({ label: p.label, value: p.avgSheet })),
         height: 180,
-        colorFn: i => shown[i].avgSheet === maxAvg ? '#6a9b6a' : '#b1873c',
+        colorFn: i => shown[i].avgSheet === maxAvg ? '#059669' : '#d97706',
       }),
-      h('p', { style: { fontSize: 11.5, color: 'var(--mute-2)', margin: '6px 4px 0' } },
+      h('p', { style: { fontSize: 11.5, color: 'var(--text-faint)', margin: '6px 4px 0' } },
         'Average of every sheet shot in that period — comparable whether you shot 2 sheets or 5.')),
 
     h('div', { className: 'kpi-grid' },
@@ -527,7 +657,7 @@ function ProgressTab({ sessionsAsc }) {
         h('div', { className: 'kpi-value' }, latest.avgSheet),
         h('div', { className: 'kpi-label' }, `This ${periodWord}'s average`)),
       h('div', { className: 'kpi' },
-        h('div', { className: 'kpi-value', style: { color: change === null ? 'var(--paper)' : change > 0 ? 'var(--good)' : change < 0 ? 'var(--ring-red)' : 'var(--paper)' } },
+        h('div', { className: 'kpi-value', style: { color: change === null ? 'var(--text)' : change > 0 ? 'var(--good-text)' : change < 0 ? 'var(--bad-text)' : 'var(--text)' } },
           change === null ? '—' : `${change > 0 ? '+' : ''}${change}`),
         h('div', { className: 'kpi-label' }, `vs previous ${periodWord}`)),
       h('div', { className: 'kpi' },
@@ -541,9 +671,9 @@ function ProgressTab({ sessionsAsc }) {
       h('div', { className: 'section-label' }, 'Overall direction'),
       h('div', { className: 'card' },
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 14 } },
-          h('div', { className: 'gauge-num', style: { color: overall > 0.5 ? 'var(--good)' : overall < -0.5 ? 'var(--ring-red)' : 'var(--mute)' } },
+          h('div', { className: 'gauge-num', style: { color: overall > 0.5 ? 'var(--good-text)' : overall < -0.5 ? 'var(--bad-text)' : 'var(--text-mute)' } },
             `${overall > 0 ? '+' : ''}${overall}`),
-          h('p', { style: { margin: 0, fontSize: 13, color: 'var(--mute)', lineHeight: 1.5 } },
+          h('p', { style: { margin: 0, fontSize: 13, color: 'var(--text-mute)', lineHeight: 1.5 } },
             overall > 0.5
               ? `Your recent ${periodWord}s average ${Math.abs(overall)} points more per sheet than your earlier ones. That is real improvement, not just a good day.`
               : overall < -0.5
@@ -558,11 +688,11 @@ function ProgressTab({ sessionsAsc }) {
         return h('div', { key: p.key, className: 'hist-row', style: { cursor: 'default' } },
           h('div', null,
             h('div', { style: { fontSize: 13.5 } }, p.label),
-            h('div', { style: { fontSize: 11, color: 'var(--mute-2)', marginTop: 2 } },
+            h('div', { style: { fontSize: 11, color: 'var(--text-faint)', marginTop: 2 } },
               `${p.sheets} sheet${p.sheets === 1 ? '' : 's'} · ${p.shots} shots${p.xCount ? ' · ' + p.xCount + ' X' : ''}`)),
           h('div', { style: { textAlign: 'right' } },
             h('div', { className: 'hist-score' }, p.avgSheet),
-            d === null ? null : h('div', { style: { fontSize: 11, color: d > 0 ? 'var(--good)' : d < 0 ? 'var(--ring-red)' : 'var(--mute)' } },
+            d === null ? null : h('div', { style: { fontSize: 11, color: d > 0 ? 'var(--good-text)' : d < 0 ? 'var(--bad-text)' : 'var(--text-mute)' } },
               `${d > 0 ? '+' : ''}${d}`)));
       })));
 }
@@ -595,11 +725,11 @@ function ShotAnalysisTab({ sessions }) {
       h('select', { className: 'select', value: selected.id, onChange: e => setSelId(Number(e.target.value)) },
         withB.map(s => h('option', { key: s.id, value: s.id }, `${fmtLong(s.date)} · ${s.totalScore}`)))),
     h('div', { className: 'section-label' }, `Score-value distribution — ${stats.total} shots`),
-    h('div', { className: 'card' }, h(SimpleBarChart, { points: chartData, colorFn: i => i <= 1 ? '#6a9b6a' : i <= 3 ? '#b1873c' : '#c1402f' })),
+    h('div', { className: 'card' }, h(SimpleBarChart, { points: chartData, colorFn: i => i <= 1 ? '#059669' : i <= 3 ? '#d97706' : '#dc2626' })),
     h('div', { className: 'card' },
-      h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--mute)', marginBottom: 8 } },
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--text-mute)', marginBottom: 8 } },
         h('span', null, `High-quality (10+9): ${stats.high}`), h('span', null, `Low-quality (8 & below): ${stats.low}`)),
-      h('p', { style: { margin: 0, fontSize: 13, color: 'var(--mute)' } },
+      h('p', { style: { margin: 0, fontSize: 13, color: 'var(--text-mute)' } },
         `${stats.ninePlusPct}% of shots were 9 or 10 — ` + (stats.ninePlusPct >= 55 ? 'most points are coming from clean, high-value shots.' : "there's room to convert 8s into 9s and 10s."))));
 }
 
@@ -618,20 +748,20 @@ function ShotCalculator({ sheetNumber, initialShots, onDone, onCancel }) {
         h('div', null,
           h('p', { className: 'eyebrow', style: { margin: 0 } },
             `Sheet ${sheetNumber} · ${shots.length} of ${SHOTS_PER_SHEET} shots entered`),
-          h('div', { className: 'calc-total' }, total, h('span', { style: { fontSize: 16, color: 'var(--mute)' } }, ` / ${MAX_PER_SHEET}`))),
+          h('div', { className: 'calc-total' }, total, h('span', { style: { fontSize: 16, color: 'var(--text-mute)' } }, ` / ${MAX_PER_SHEET}`))),
         h('button', { className: 'btn-ghost', style: { fontSize: 20 }, onClick: onCancel }, '✕')),
 
       h('div', { className: 'calc-shots' },
         shots.length === 0
-          ? h('span', { style: { fontSize: 12.5, color: 'var(--mute-2)' } }, 'Tap a value for each shot as you score the sheet')
+          ? h('span', { style: { fontSize: 12.5, color: 'var(--text-faint)' } }, 'Tap a value for each shot as you score the sheet')
           : shots.map((s, i) => h('span', { key: i, className: `calc-chip ${s.x ? 'x' : ''}` },
-              h('span', { style: { fontSize: 9, color: 'var(--mute-2)', marginRight: 4 } }, i + 1),
+              h('span', { style: { fontSize: 9, color: 'var(--text-faint)', marginRight: 4 } }, i + 1),
               s.x ? 'X' : s.value))),
 
-      shots.length === SHOTS_PER_SHEET && h('p', { style: { fontSize: 12, color: 'var(--good)', margin: '0 0 10px' } },
+      shots.length === SHOTS_PER_SHEET && h('p', { style: { fontSize: 12, color: 'var(--good-text)', margin: '0 0 10px' } },
         `All ${SHOTS_PER_SHEET} shots entered — total ${total}.`),
 
-      shots.length > SHOTS_PER_SHEET && h('p', { style: { fontSize: 12, color: 'var(--brass)', margin: '0 0 10px' } },
+      shots.length > SHOTS_PER_SHEET && h('p', { style: { fontSize: 12, color: 'var(--warn-text)', margin: '0 0 10px' } },
         `That's ${shots.length} shots — more than the usual ${SHOTS_PER_SHEET} on a sheet.`),
 
       h('div', { className: 'calc-pad' },
@@ -639,7 +769,7 @@ function ShotCalculator({ sheetNumber, initialShots, onDone, onCancel }) {
         keys.map(k => h('button', { key: k, className: 'calc-key', onClick: () => tap(k, false) }, k)),
         h('button', { className: 'calc-key', onClick: () => tap(0, false) }, '0'),
         h('button', { className: 'calc-key wide', onClick: undo, disabled: !shots.length }, '← Undo'),
-        h('button', { className: 'calc-key wide', style: { background: 'var(--ring-red)', borderColor: 'var(--ring-red)' }, onClick: () => onDone(shots) }, 'Done'))));
+        h('button', { className: 'calc-key wide', style: { background: 'var(--bad-text)', borderColor: 'var(--bad-text)' }, onClick: () => onDone(shots) }, 'Done'))));
 }
 
 /* ---------- Crop tool: trim the photo to just the sheet before saving ---------- */
@@ -687,20 +817,20 @@ function CropTool({ src, onDone, onCancel }) {
       h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 } },
         h('span', { style: { fontSize: 15, fontWeight: 600 } }, 'Crop to the sheet'),
         h('button', { className: 'btn-ghost', style: { fontSize: 20 }, onClick: onCancel }, '✕')),
-      h('p', { style: { fontSize: 12, color: 'var(--mute)', margin: '0 0 10px' } }, 'Drag the box to move it, or the corner handle to resize.'),
+      h('p', { style: { fontSize: 12, color: 'var(--text-mute)', margin: '0 0 10px' } }, 'Drag the box to move it, or the corner handle to resize.'),
       h('div', { ref: boxRef, style: { position: 'relative', userSelect: 'none', touchAction: 'none' } },
         h('img', { ref: imgRef, src, alt: 'Crop', style: { width: '100%', display: 'block', borderRadius: 4 } }),
         h('div', {
           onMouseDown: e => startDrag('move', e), onTouchStart: e => startDrag('move', e),
           style: {
             position: 'absolute', left: box.x + '%', top: box.y + '%', width: box.w + '%', height: box.h + '%',
-            border: '2px solid var(--ring-red)', boxShadow: '0 0 0 9999px rgba(10,12,14,0.55)', cursor: 'move',
+            border: '2px solid var(--bad-text)', boxShadow: '0 0 0 9999px rgba(10,12,14,0.55)', cursor: 'move',
           } },
           h('div', {
             onMouseDown: e => startDrag('resize', e), onTouchStart: e => startDrag('resize', e),
             style: {
               position: 'absolute', right: -11, bottom: -11, width: 24, height: 24, borderRadius: '50%',
-              background: 'var(--ring-red)', border: '2px solid var(--paper)', cursor: 'nwse-resize',
+              background: 'var(--bad-text)', border: '2px solid var(--text)', cursor: 'nwse-resize',
             } }))),
       h('div', { style: { display: 'flex', gap: 8, marginTop: 14 } },
         h('button', { className: 'btn-secondary', onClick: () => onDone(src) }, 'Use full photo'),
@@ -726,7 +856,7 @@ function GalleryTab({ sessions, onOpenSession }) {
     dates.map(d => h('div', { key: d, style: { marginBottom: 20 } },
       h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 } },
         h('span', { style: { fontSize: 14, fontWeight: 600 } }, fmtLong(d)),
-        h('span', { style: { fontSize: 11.5, color: 'var(--mute)' } }, `${byDate[d].length} sheet${byDate[d].length > 1 ? 's' : ''}`)),
+        h('span', { style: { fontSize: 11.5, color: 'var(--text-mute)' } }, `${byDate[d].length} sheet${byDate[d].length > 1 ? 's' : ''}`)),
       h('div', { className: 'gal-grid' }, byDate[d].map((it, i) =>
         h('div', { key: i, className: 'gal-item', onClick: () => setZoom(it) },
           h('img', { src: `/api/photo?key=${it.photoKey}`, loading: 'lazy', alt: `Sheet ${it.sheet}` }),
@@ -735,9 +865,324 @@ function GalleryTab({ sessions, onOpenSession }) {
             h('div', { className: 'gal-date' }, `${fmtShort(it.date)} · sheet ${it.sheet}`))))))),
     zoom && h('div', { className: 'lightbox', onClick: () => setZoom(null) },
       h('img', { src: `/api/photo?key=${zoom.photoKey}`, alt: 'Sheet' }),
-      h('p', { style: { color: 'var(--paper)', marginTop: 14, fontSize: 14 } },
+      h('p', { style: { color: 'var(--text)', marginTop: 14, fontSize: 14 } },
         `${fmtLong(zoom.date)} · sheet ${zoom.sheet} · ${zoom.score}/${MAX_PER_SHEET}`),
       h('button', { className: 'btn-ghost', style: { marginTop: 8 }, onClick: () => setZoom(null) }, 'Close')));
+}
+
+/* ---------- Training log: attendance + spending ---------- */
+function weekStartOf(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // Monday = start of week
+  return d.toISOString().slice(0, 10);
+}
+
+function TrainingTab({ sessions }) {
+  const [view, setView] = useState('attendance');
+  const [attendance, setAttendance] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    Promise.all([api.listAttendance(), api.listExpenses()])
+      .then(([a, e]) => { setAttendance(a); setExpenses(e); setLoading(false); })
+      .catch(() => { setLoading(false); setFailed(true); });
+  }, []);
+
+  if (loading) return h('div', { className: 'empty' }, h('span', { className: 'mono spinner' }, '◐'));
+
+  return h(React.Fragment, null,
+    failed && h('div', { className: 'error-banner' }, "Couldn't load your training log. Refresh, or check back shortly."),
+    h('div', { className: 'seg' },
+      [['attendance', 'Attendance'], ['spending', 'Spending'], ['summary', 'Summary']].map(([k, label]) =>
+        h('button', { key: k, className: view === k ? 'on' : '', onClick: () => setView(k) }, label))),
+    view === 'attendance' && h(AttendanceView, { attendance, setAttendance }),
+    view === 'spending' && h(SpendingView, { expenses, setExpenses }),
+    view === 'summary' && h(SummaryView, { attendance, expenses, sessions }));
+}
+
+function AttendanceView({ attendance, setAttendance }) {
+  const [month, setMonth] = useState(monthKey(todayISO()));
+  const [busy, setBusy] = useState(null);
+  const today = todayISO();
+
+  const byDate = {};
+  attendance.forEach(a => { byDate[a.date] = a; });
+
+  const thisMonth = attendance.filter(a => monthKey(a.date) === month).length;
+  const lastMonthKey = shiftMonth(month, -1);
+  const lastMonth = attendance.filter(a => monthKey(a.date) === lastMonthKey).length;
+  const diff = thisMonth - lastMonth;
+
+  // Consecutive weeks with at least one class, counting back from the most recent.
+  const weeks = new Set(attendance.map(a => weekStartOf(a.date)));
+  let streak = 0;
+  if (weeks.size) {
+    let cursor = weekStartOf(today);
+    if (!weeks.has(cursor)) cursor = weekStartOf(new Date(Date.parse(cursor + 'T00:00:00') - 7 * 86400000).toISOString().slice(0, 10));
+    while (weeks.has(cursor)) {
+      streak += 1;
+      cursor = new Date(Date.parse(cursor + 'T00:00:00') - 7 * 86400000).toISOString().slice(0, 10);
+    }
+  }
+
+  const [y, m] = month.split('-').map(Number);
+  const firstDow = new Date(y, m - 1, 1).getDay(); // 0 = Sunday
+  const daysInMonth = new Date(y, m, 0).getDate();
+
+  function toggle(dateStr) {
+    if (busy) return;
+    setBusy(dateStr);
+    const existing = byDate[dateStr];
+    if (existing) {
+      api.removeAttendance(existing.id)
+        .then(() => setAttendance(prev => prev.filter(a => a.id !== existing.id)))
+        .finally(() => setBusy(null));
+    } else {
+      api.addAttendance(dateStr)
+        .then(row => setAttendance(prev => prev.some(a => a.id === row.id) ? prev : [...prev, row]))
+        .finally(() => setBusy(null));
+    }
+  }
+
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(h('div', { key: 'b' + i, className: 'cal-day blank' }));
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${month}-${String(day).padStart(2, '0')}`;
+    const on = !!byDate[dateStr];
+    cells.push(h('button', {
+      key: dateStr,
+      className: `cal-day${on ? ' on' : ''}${dateStr === today ? ' today' : ''}`,
+      disabled: busy === dateStr,
+      onClick: () => toggle(dateStr),
+      'aria-pressed': on,
+      'aria-label': `${fmtLong(dateStr)}${on ? ' — attended' : ''}`,
+    }, day));
+  }
+
+  return h(React.Fragment, null,
+    h('div', { className: 'card' },
+      h('div', { className: 'cal-head' },
+        h('button', { className: 'cal-nav', onClick: () => setMonth(shiftMonth(month, -1)), 'aria-label': 'Previous month' }, '‹'),
+        h('div', { className: 'cal-month' }, monthLabel(month)),
+        h('button', { className: 'cal-nav', onClick: () => setMonth(shiftMonth(month, 1)), 'aria-label': 'Next month' }, '›')),
+      h('div', { className: 'cal-grid' },
+        ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => h('div', { key: 'd' + i, className: 'cal-dow' }, d)),
+        cells),
+      h('p', { style: { fontSize: 11.5, color: 'var(--text-faint)', margin: '12px 0 0' } },
+        'Tap a day to mark a class. Tap again to remove it.')),
+
+    h('div', { className: 'section-label' }, 'This month'),
+    h('div', { className: 'card' },
+      h('div', { className: 'money-big' }, thisMonth, h('span', { style: { fontSize: 16, color: 'var(--text-mute)', fontWeight: 500 } }, thisMonth === 1 ? ' class' : ' classes')),
+      h('p', { style: { margin: '8px 0 0', fontSize: 13, color: 'var(--text-mute)' } },
+        `Last month: ${lastMonth}`),
+      h('p', { style: { margin: '4px 0 0', fontSize: 13, color: diff > 0 ? 'var(--good-text)' : diff < 0 ? 'var(--bad-text)' : 'var(--text-mute)' } },
+        lastMonth === 0 && thisMonth === 0 ? 'No classes logged either month.'
+          : diff === 0 ? 'Same as last month.'
+          : `${Math.abs(diff)} ${diff > 0 ? 'more' : 'fewer'} than last month`)),
+
+    streak > 0 && h(React.Fragment, null,
+      h('div', { className: 'section-label' }, 'Streak'),
+      h('div', { className: 'card gauge-wrap' },
+        h('div', { className: 'gauge-num', style: { color: 'var(--accent-text)' } }, streak),
+        h('p', { style: { margin: 0, fontSize: 13, color: 'var(--text-mute)' } },
+          `${plural(streak, 'week')} in a row with at least one class.`))));
+}
+
+function SpendingView({ expenses, setExpenses }) {
+  const [adding, setAdding] = useState(false);
+  const [confirmId, setConfirmId] = useState(null);
+
+  function remove(id) {
+    api.removeExpense(id).then(() => setExpenses(prev => prev.filter(e => e.id !== id)));
+    setConfirmId(null);
+  }
+
+  if (adding) return h(SpendingForm, {
+    onCancel: () => setAdding(false),
+    onSaved: (row) => { setExpenses(prev => [row, ...prev]); setAdding(false); },
+  });
+
+  // Newest first, grouped under date headings.
+  const sorted = [...expenses].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id));
+  const groups = [];
+  sorted.forEach(e => {
+    const last = groups[groups.length - 1];
+    if (last && last.date === e.date) last.rows.push(e);
+    else groups.push({ date: e.date, rows: [e] });
+  });
+
+  return h(React.Fragment, null,
+    h('button', { className: 'btn-primary', onClick: () => setAdding(true) }, '+ Add spending'),
+    expenses.length === 0
+      ? h('div', { className: 'empty' }, 'Nothing logged yet. Add a class fee, pellets or an accessory to start tracking what this costs.')
+      : groups.map(g => h(React.Fragment, { key: g.date },
+          h('div', { className: 'date-head' }, fmtLong(g.date)),
+          h('div', { className: 'card' }, g.rows.map(e => {
+            const cat = categoryOf(e.category);
+            const bits = [];
+            if (e.quantity) bits.push(e.category === 'pellets' ? plural(e.quantity, 'box') : e.category === 'sheets' ? plural(e.quantity, 'sheet') : plural(e.quantity, 'refill'));
+            if (e.vendor) bits.push(e.vendor);
+            return h('div', { key: e.id, className: 'spend-row' },
+              h('span', { className: 'cat-dot', style: { background: cat.color } }),
+              h('div', { className: 'spend-main' },
+                h('div', { className: 'spend-name' }, e.itemName || cat.label,
+                  e.category === 'pellets' && e.purchaseSource && h('span', { className: 'tag' }, e.purchaseSource === 'online' ? 'Online' : 'Shop')),
+                bits.length > 0 && h('div', { className: 'spend-sub' }, bits.join(' · '))),
+              h('span', { className: 'spend-amt' }, money(e.amount)),
+              confirmId === e.id
+                ? h('span', { style: { display: 'flex', gap: 6 } },
+                    h('button', { className: 'btn-ghost', style: { color: 'var(--bad-text)', fontWeight: 600 }, onClick: () => remove(e.id) }, 'Delete'),
+                    h('button', { className: 'btn-ghost', onClick: () => setConfirmId(null) }, 'No'))
+                : h('button', { className: 'btn-ghost', style: { fontSize: 16 }, onClick: () => setConfirmId(e.id), 'aria-label': 'Delete entry' }, '×'));
+          }))))
+  );
+}
+
+function SpendingForm({ onCancel, onSaved }) {
+  const [category, setCategory] = useState(null);
+  const [date, setDate] = useState(todayISO());
+  const [amount, setAmount] = useState('');
+  const [itemName, setItemName] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [purchaseSource, setPurchaseSource] = useState('online');
+  const [vendor, setVendor] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Cylinder refills are almost always one at a time.
+  function pick(key) {
+    setCategory(key);
+    if (key === 'cylinder_refill' && quantity === '') setQuantity('1');
+  }
+
+  const needsItem = category === 'accessory';
+  const needsQty = category === 'pellets' || category === 'cylinder_refill' || category === 'sheets';
+  const needsSource = category === 'pellets';
+  const needsVendor = category === 'pellets' || category === 'cylinder_refill';
+  const qtyLabel = category === 'pellets' ? 'Number of boxes' : category === 'sheets' ? 'Number of sheets' : 'Number of refills';
+  const canSave = !!category && amount !== '' && !Number.isNaN(parseFloat(amount));
+
+  function save() {
+    setSaving(true);
+    api.addExpense({
+      date, category, amount: parseFloat(amount),
+      itemName: needsItem ? (itemName || null) : null,
+      quantity: needsQty && quantity !== '' ? Number(quantity) : null,
+      purchaseSource: needsSource ? purchaseSource : null,
+      vendor: needsVendor && vendor ? vendor : null,
+    }).then(onSaved).catch(() => setSaving(false));
+  }
+
+  return h(React.Fragment, null,
+    h('div', { className: 'back-row', onClick: onCancel }, '✕ Cancel'),
+    h('p', { className: 'label' }, 'What did you spend on?'),
+    h('div', { className: 'cat-grid' }, CATEGORIES.map(c =>
+      h('button', { key: c.key, className: `cat-btn${category === c.key ? ' on' : ''}`, onClick: () => pick(c.key) },
+        h('span', { className: 'cat-dot', style: { background: c.color } }), c.label))),
+
+    category && h('div', { style: { marginTop: 18 } },
+      h('div', { className: 'field' }, h('label', { className: 'label' }, 'Date'),
+        h('input', { type: 'date', className: 'input', value: date, onChange: e => setDate(e.target.value) })),
+
+      needsItem && h('div', { className: 'field' }, h('label', { className: 'label' }, 'Item name'),
+        h('input', { className: 'input', value: itemName, placeholder: 'e.g. grip tape, shooting glasses', onChange: e => setItemName(e.target.value) })),
+
+      needsQty && h('div', { className: 'field' }, h('label', { className: 'label' }, qtyLabel),
+        h('input', { className: 'input mono', value: quantity, inputMode: 'numeric', onChange: e => setQuantity(e.target.value) })),
+
+      h('div', { className: 'field' }, h('label', { className: 'label' }, 'Amount (₹)'),
+        h('input', { className: 'input mono', value: amount, inputMode: 'decimal', placeholder: '0', onChange: e => setAmount(e.target.value) })),
+
+      needsSource && h('div', { className: 'field' }, h('label', { className: 'label' }, 'Bought from'),
+        h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 } },
+          [['online', 'Online'], ['physical', 'Physical shop']].map(([k, label]) =>
+            h('button', { key: k, className: purchaseSource === k ? 'btn-primary' : 'btn-secondary', style: { padding: '11px 0', fontSize: 14 }, onClick: () => setPurchaseSource(k) }, label)))),
+
+      needsVendor && h('div', { className: 'field' }, h('label', { className: 'label' }, 'Vendor (optional)'),
+        h('input', { className: 'input', value: vendor, onChange: e => setVendor(e.target.value) })),
+
+      h('button', { className: 'btn-primary', disabled: !canSave || saving, onClick: save }, saving ? 'Saving…' : 'Save spending')));
+}
+
+function SummaryView({ attendance, expenses, sessions }) {
+  const [month, setMonth] = useState(monthKey(todayISO()));
+
+  const inMonth = expenses.filter(e => monthKey(e.date) === month);
+  const total = inMonth.reduce((a, e) => a + e.amount, 0);
+  const prevKey = shiftMonth(month, -1);
+  const prevTotal = expenses.filter(e => monthKey(e.date) === prevKey).reduce((a, e) => a + e.amount, 0);
+  const delta = total - prevTotal;
+
+  const sumWhere = (key, field) => inMonth.filter(e => e.category === key).reduce((a, e) => a + (field === 'amount' ? e.amount : (e.quantity || 0)), 0);
+  const classFees = sumWhere('class_fee', 'amount');
+  const pelletBoxes = sumWhere('pellets', 'qty');
+  const refills = sumWhere('cylinder_refill', 'qty');
+  const sheetsBought = sumWhere('sheets', 'qty');
+
+  const classes = attendance.filter(a => monthKey(a.date) === month).length;
+  const sheetsShot = sessions.filter(s => monthKey(s.date) === month).reduce((a, s) => a + sheetList(s).length, 0);
+
+  // Both guarded — a month with no classes or no sheets shot must not divide by zero.
+  const costPerClass = classes > 0 ? classFees / classes : null;
+  const costPerSheet = sheetsShot > 0 ? total / sheetsShot : null;
+
+  const breakdown = CATEGORIES
+    .map(c => ({ ...c, amount: inMonth.filter(e => e.category === c.key).reduce((a, e) => a + e.amount, 0) }))
+    .filter(c => c.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+
+  // Totals for the last six months ending at the selected one.
+  const trail = [];
+  for (let i = 5; i >= 0; i--) {
+    const k = shiftMonth(month, -i);
+    trail.push({
+      label: new Date(k + '-01T00:00:00').toLocaleDateString('en-GB', { month: 'short' }),
+      value: Math.round(expenses.filter(e => monthKey(e.date) === k).reduce((a, e) => a + e.amount, 0)),
+    });
+  }
+
+  return h(React.Fragment, null,
+    h('div', { className: 'cal-head' },
+      h('button', { className: 'cal-nav', onClick: () => setMonth(shiftMonth(month, -1)), 'aria-label': 'Previous month' }, '‹'),
+      h('div', { className: 'cal-month' }, monthLabel(month)),
+      h('button', { className: 'cal-nav', onClick: () => setMonth(shiftMonth(month, 1)), 'aria-label': 'Next month' }, '›')),
+
+    h('div', { className: 'card' },
+      h('p', { className: 'label', style: { marginBottom: 6 } }, 'Total spent this month'),
+      h('div', { className: 'money-big' }, money(total)),
+      h('p', { style: { margin: '8px 0 0', fontSize: 13, color: delta > 0 ? 'var(--bad-text)' : delta < 0 ? 'var(--good-text)' : 'var(--text-mute)' } },
+        prevTotal === 0 && total === 0 ? 'Nothing logged this month or last.'
+          : delta === 0 ? 'Same as last month.'
+          : `${money(Math.abs(delta))} ${delta > 0 ? 'more' : 'less'} than last month`)),
+
+    breakdown.length > 0 && h(React.Fragment, null,
+      h('div', { className: 'section-label' }, h('span', null, 'Where it went'), h('span', null, `${breakdown.length} categories`)),
+      h('div', { className: 'card' }, breakdown.map(c => {
+        const pct = total > 0 ? Math.round((c.amount / total) * 100) : 0;
+        return h('div', { key: c.key, className: 'bd-row' },
+          h('span', { className: 'bd-label' }, h('span', { className: 'cat-dot', style: { background: c.color } }), c.label),
+          h('span', { className: 'bd-track' }, h('span', { className: 'bd-fill', style: { width: `${pct}%`, background: c.color, display: 'block', height: '100%' } })),
+          h('span', { className: 'bd-amt' }, money(c.amount)),
+          h('span', { style: { fontSize: 11.5, color: 'var(--text-faint)', width: 34, textAlign: 'right' } }, pct + '%'));
+      }))),
+
+    h('div', { className: 'kpi-grid' },
+      h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, classes), h('div', { className: 'kpi-label' }, 'Classes attended')),
+      h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, pelletBoxes), h('div', { className: 'kpi-label' }, 'Pellet boxes')),
+      h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, refills), h('div', { className: 'kpi-label' }, 'Cylinder refills')),
+      h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, sheetsBought), h('div', { className: 'kpi-label' }, 'Sheets bought')),
+      h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, costPerClass === null ? '—' : money(Math.round(costPerClass))), h('div', { className: 'kpi-label' }, 'Cost per class')),
+      h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, costPerSheet === null ? '—' : money(Math.round(costPerSheet))), h('div', { className: 'kpi-label' }, 'Cost per sheet shot'))),
+
+    h('p', { style: { fontSize: 11.5, color: 'var(--text-faint)', margin: '10px 2px 0' } },
+      costPerSheet === null
+        ? 'Cost per sheet appears once you have logged sheets shot in this month.'
+        : `Based on ${plural(sheetsShot, 'sheet')} actually shot this month.`),
+
+    h('div', { className: 'section-label' }, h('span', null, 'Monthly spend'), h('span', null, 'last 6 months')),
+    h('div', { className: 'card' }, h(SimpleBarChart, { points: trail, height: 170 })));
 }
 
 /* ---------- Session detail ---------- */
@@ -757,7 +1202,7 @@ function SessionDetail({ session, onBack, allSessions }) {
     h('div', { className: 'back-row', onClick: onBack }, '← Back'),
     h('p', { className: 'eyebrow' }, `${fmtLong(session.date)} · #${session.sessionNumber ?? '—'}`),
     h('div', { className: 'hero-score', style: { marginTop: 6 } }, `${session.totalScore} `, h('span', null, `/ ${session.maxScore}`)),
-    h('p', { style: { color: 'var(--mute)', fontSize: 13, marginTop: 4 } },
+    h('p', { style: { color: 'var(--text-mute)', fontSize: 13, marginTop: 4 } },
       `${round1(d.percentage)}% · avg ${round1(d.averageScore)} · ${session.xCount || 0} Xs · ${session.discipline || '—'} · ${session.distance || '—'}`),
     session.photoKey && h('div', { style: { marginTop: 14 } }, h('img', { src: `/api/photo?key=${session.photoKey}`, style: { width: '100%', borderRadius: 4, border: '1px solid var(--line)' } })),
     sheets.some(x => x.photoKey) && h(React.Fragment, null,
@@ -766,13 +1211,13 @@ function SessionDetail({ session, onBack, allSessions }) {
         h('img', { key: i, src: `/api/photo?key=${x.photoKey}`, alt: `Sheet ${x.sheet}`, loading: 'lazy' })))),
     series.length > 0 && h(React.Fragment, null,
       h('div', { className: 'section-label' }, `Sheets — ${sheets.length} × ${SHOTS_PER_SHEET} shots`),
-      h('div', { className: 'card' }, h(SimpleBarChart, { points: sheets.map(x => ({ label: '#' + x.sheet, value: x.score })), colorFn: i => i === strongIdx ? '#6a9b6a' : i === weakIdx ? '#c1402f' : '#b1873c' })),
+      h('div', { className: 'card' }, h(SimpleBarChart, { points: sheets.map(x => ({ label: '#' + x.sheet, value: x.score })), colorFn: i => i === strongIdx ? '#059669' : i === weakIdx ? '#dc2626' : '#d97706' })),
       sheets.length > 1 && h('div', { className: 'card' },
         h('div', { className: 'hist-row' }, h('span', null, 'Best sheet'), h('span', { className: 'mono' }, `#${sheets[strongIdx].sheet} — ${series[strongIdx]}`)),
         h('div', { className: 'hist-row' }, h('span', null, 'Weakest sheet'), h('span', { className: 'mono' }, `#${sheets[weakIdx].sheet} — ${series[weakIdx]}`)),
         h('div', { className: 'hist-row' }, h('span', null, 'Average per sheet'), h('span', { className: 'mono' }, round1(avg(series)))))),
     h('div', { className: 'section-label' }, 'Session analysis'),
-    h('div', { className: 'card' }, lines.map((l, i) => h('p', { key: i, style: { margin: i === 0 ? 0 : '8px 0 0', fontSize: 13, color: 'var(--mute)', lineHeight: 1.5 } }, l))),
+    h('div', { className: 'card' }, lines.map((l, i) => h('p', { key: i, style: { margin: i === 0 ? 0 : '8px 0 0', fontSize: 13, color: 'var(--text-mute)', lineHeight: 1.5 } }, l))),
     session.notes && (session.notes.feltLike || session.notes.wentWell || session.notes.improve) && h(React.Fragment, null,
       h('div', { className: 'section-label' }, 'Notes'),
       h('div', { className: 'card' },
@@ -978,12 +1423,12 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
     step === 1 && h(React.Fragment, null,
       h('div', { className: 'field' }, h('label', { className: 'label' }, 'Practice date'),
         h('input', { type: 'date', className: 'input', value: date, onChange: e => setDate(e.target.value) })),
-      existingForDate.length > 0 && h('p', { style: { fontSize: 12.5, color: 'var(--brass)', marginBottom: 14 } },
+      existingForDate.length > 0 && h('p', { style: { fontSize: 12.5, color: 'var(--warn-text)', marginBottom: 14 } },
         `${existingForDate.length} session(s) already logged for this date — this will be added as another one.`),
       h('button', { className: 'btn-primary', onClick: () => setStep(3) }, 'Continue')),
 
     step === 3 && h(React.Fragment, null,
-      extractNote && h('p', { style: { fontSize: 12.5, color: 'var(--mute)', marginBottom: 12 } }, extractNote),
+      extractNote && h('p', { style: { fontSize: 12.5, color: 'var(--text-mute)', marginBottom: 12 } }, extractNote),
       h('div', { className: 'row2' },
         h('div', { className: 'field' }, h('label', { className: 'label' }, 'Session of the day'),
           h('select', { className: 'select', value: fields.sessionNumber, onChange: e => updateField('sessionNumber', e.target.value) },
@@ -995,7 +1440,7 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
       h('div', { className: 'card', style: { marginBottom: 12, padding: '10px 14px' } },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
           h('span', { style: { fontSize: 13.5, fontWeight: 600 } }, fmtLong(date)),
-          h('span', { style: { fontSize: 12, color: 'var(--mute)' } }, fields.sessionNumber ? `Session ${fields.sessionNumber}` : ''))),
+          h('span', { style: { fontSize: 12, color: 'var(--text-mute)' } }, fields.sessionNumber ? `Session ${fields.sessionNumber}` : ''))),
       h('div', { className: 'section-label', style: { marginTop: 0 } }, h('span', null, 'Scoring upload'), h('span', null, `${SHOTS_PER_SHEET} shots per sheet`)),
       sheets.map((s, i) => h('div', { key: i, className: 'card', style: { padding: 12, marginBottom: 8 } },
         h('div', { style: { display: 'grid', gridTemplateColumns: '64px 1fr 30px', gap: 8, alignItems: 'center' } },
@@ -1017,14 +1462,14 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
             alt: `Sheet ${s.sheet}`,
             onClick: () => setZoomSrc(s.preview || `/api/photo?key=${s.photoKey}`),
             style: { width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--line)', cursor: 'zoom-in' } }),
-          uploadingIdx === i && h('p', { style: { fontSize: 11.5, color: 'var(--mute)', margin: '5px 0 0' } }, 'Saving photo…'),
-          s.extracted && h('p', { style: { fontSize: 11.5, color: 'var(--good)', margin: '5px 0 0' } }, 'Shot counts read from this photo — check them on the next step.'),
-          s.readFailed && !s.extracted && h('p', { style: { fontSize: 11.5, color: 'var(--mute)', margin: '5px 0 0' } }, 'Photo saved. Couldn\u2019t read the numbers automatically — enter the score above or tap them in.')))),
+          uploadingIdx === i && h('p', { style: { fontSize: 11.5, color: 'var(--text-mute)', margin: '5px 0 0' } }, 'Saving photo…'),
+          s.extracted && h('p', { style: { fontSize: 11.5, color: 'var(--good-text)', margin: '5px 0 0' } }, 'Shot counts read from this photo — check them on the next step.'),
+          s.readFailed && !s.extracted && h('p', { style: { fontSize: 11.5, color: 'var(--text-mute)', margin: '5px 0 0' } }, 'Photo saved. Couldn\u2019t read the numbers automatically — enter the score above or tap them in.')))),
       h('button', { className: 'btn-secondary', style: { marginBottom: 14 }, onClick: addSheet }, '+ Add another sheet'),
 
       filledSheets.length > 0 && h('div', { className: 'card', style: { marginBottom: 14 } },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
-          h('span', { style: { fontSize: 12.5, color: 'var(--mute)' } }, `${filledSheets.length} sheet${filledSheets.length > 1 ? 's' : ''} · ${liveShots} shots`),
+          h('span', { style: { fontSize: 12.5, color: 'var(--text-mute)' } }, `${filledSheets.length} sheet${filledSheets.length > 1 ? 's' : ''} · ${liveShots} shots`),
           h('span', { className: 'mono', style: { fontSize: 20, fontWeight: 700 } }, `${liveTotal} / ${liveMax}`))),
 
       h('div', { className: 'field' }, h('label', { className: 'label' }, 'X / inner-10 count (optional)'),
@@ -1038,19 +1483,19 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
           h('span', null, `${tappedShots.length} shots · ${sheetsWithShots.length} sheet${sheetsWithShots.length > 1 ? 's' : ''}`)),
         h('div', { className: 'card' },
           h('div', { className: 'tally-grid' },
-            [['10s', tally.ten, 'var(--good)'], ['9s', tally.nine, 'var(--good)'], ['8s', tally.eight, 'var(--brass)'],
-             ['7s', tally.seven, 'var(--brass)'], ['6s', tally.six, 'var(--ring-red)'], ['≤5', tally.fiveDown, 'var(--ring-red)']]
+            [['10s', tally.ten, 'var(--good-text)'], ['9s', tally.nine, 'var(--good-text)'], ['8s', tally.eight, 'var(--warn-text)'],
+             ['7s', tally.seven, 'var(--warn-text)'], ['6s', tally.six, 'var(--bad-text)'], ['≤5', tally.fiveDown, 'var(--bad-text)']]
               .map(([label, count, color]) => h('div', { key: label, className: 'tally-cell' },
                 h('div', { className: 'tally-num', style: { color } }, count),
                 h('div', { className: 'tally-lab' }, label)))),
           h('div', { style: { display: 'flex', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)', fontSize: 13 } },
-            h('span', { style: { color: 'var(--mute)' } }, `X count: `, h('span', { className: 'mono', style: { color: 'var(--brass)' } }, tally.x)),
-            h('span', { style: { color: 'var(--mute)' } }, `9+ : `, h('span', { className: 'mono', style: { color: 'var(--paper)' } },
+            h('span', { style: { color: 'var(--text-mute)' } }, `X count: `, h('span', { className: 'mono', style: { color: 'var(--warn-text)' } }, tally.x)),
+            h('span', { style: { color: 'var(--text-mute)' } }, `9+ : `, h('span', { className: 'mono', style: { color: 'var(--text)' } },
               `${round1(((tally.ten + tally.nine) / tappedShots.length) * 100)}%`))),
           sheetsWithShots.length > 1 && h('div', { style: { marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)' } },
             sheetsWithShots.map((s, i) => {
               const sh = s.shots || [];
-              return h('div', { key: i, style: { display: 'flex', justifyContent: 'space-between', fontSize: 12.5, padding: '4px 0', color: 'var(--mute)' } },
+              return h('div', { key: i, style: { display: 'flex', justifyContent: 'space-between', fontSize: 12.5, padding: '4px 0', color: 'var(--text-mute)' } },
                 h('span', null, `Sheet ${s.sheet}`),
                 h('span', { className: 'mono' }, `${sh.filter(x => x.value === 10).length}×10 · ${sh.filter(x => x.value === 9).length}×9 · ${sh.filter(x => x.value === 8).length}×8 — ${s.score}`));
             })))),
@@ -1064,7 +1509,7 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
       h('div', { className: 'field' }, h('label', { className: 'label' }, 'What went well?'), h('textarea', { className: 'textarea', value: notes.wentWell, onChange: e => setNotes({ ...notes, wentWell: e.target.value }) })),
       h('div', { className: 'field' }, h('label', { className: 'label' }, 'What needs improvement?'), h('textarea', { className: 'textarea', value: notes.improve, onChange: e => setNotes({ ...notes, improve: e.target.value }) })),
       h('button', { className: 'btn-primary', disabled: saving, onClick: handleSave }, saving ? 'Saving…' : 'Save session'),
-      h('p', { style: { textAlign: 'center', color: 'var(--brass)', fontSize: 14, margin: '16px 0 4px' } }, 'Good day at the shooting. Thank you.')),
+      h('p', { style: { textAlign: 'center', color: 'var(--warn-text)', fontSize: 14, margin: '16px 0 4px' } }, 'Good day at the shooting. Thank you.')),
     calcFor !== null && h(ShotCalculator, {
       sheetNumber: sheets[calcFor] ? sheets[calcFor].sheet : '',
       initialShots: sheets[calcFor] ? sheets[calcFor].shots : [],
