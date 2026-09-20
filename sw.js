@@ -1,4 +1,4 @@
-const CACHE = 'pistol-shell-v1';
+const CACHE = 'pistol-shell-v2';
 const SHELL = ['/', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {

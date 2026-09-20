@@ -153,6 +153,14 @@ function mapRow(r) {
 function deriveSession(s) {
   return { ...s, percentage: s.maxScore ? (s.totalScore / s.maxScore) * 100 : 0, averageScore: s.totalShots ? s.totalScore / s.totalShots : 0 };
 }
+// Sheets may be stored as plain numbers (older sessions) or {sheet, score} objects.
+function sheetList(s) {
+  const raw = (s && s.series) || [];
+  return raw.map((v, i) => (typeof v === 'number' ? { sheet: i + 1, score: v } : { sheet: v.sheet ?? i + 1, score: v.score ?? 0 }));
+}
+function sheetScores(s) { return sheetList(s).map(x => x.score); }
+const SHOTS_PER_SHEET = 10;
+const MAX_PER_SHEET = 100;
 function consistencyScore(sessions) {
   if (sessions.length < 2) return null;
   const scores = sessions.map(s => s.totalScore);
@@ -346,7 +354,7 @@ function HistoryTab({ sessions, onOpen }) {
       const d = deriveSession(s);
       return h('div', { key: s.id, className: 'hist-row', onClick: () => onOpen(s.id) },
         h('div', null, h('div', { className: 'hist-date' }, fmtLong(s.date)),
-          h('div', { style: { fontSize: 11.5, color: 'var(--mute-2)', marginTop: 2 } }, `#${s.sessionNumber ?? '—'} · ${s.discipline || '—'} · ${s.distance || '—'}`)),
+          h('div', { style: { fontSize: 11.5, color: 'var(--mute-2)', marginTop: 2 } }, `${sheetList(s).length || '—'} sheets · ${s.totalShots || 0} shots · ${s.distance || '—'}`)),
         h('div', { style: { textAlign: 'right' } }, h('div', { className: 'hist-score' }, s.totalScore),
           h('div', { style: { fontSize: 11, color: 'var(--mute)' } }, round1(d.percentage) + '%')));
     })));
@@ -374,13 +382,13 @@ function BestsTab({ sessions }) {
   const bestScore = sessions.reduce((a, b) => b.totalScore > a.totalScore ? b : a, sessions[0]);
   const bestAvg = sessions.reduce((a, b) => deriveSession(b).averageScore > deriveSession(a).averageScore ? b : a, sessions[0]);
   const bestX = sessions.reduce((a, b) => (b.xCount || 0) > (a.xCount || 0) ? b : a, sessions[0]);
-  const bestSeries = sessions.reduce((acc, s) => { const m = Math.max(...(s.series && s.series.length ? s.series : [0])); return m > acc.value ? { value: m, session: s } : acc; }, { value: -1, session: sessions[0] });
+  const bestSeries = sessions.reduce((acc, s) => { const sc = sheetScores(s); const m = sc.length ? Math.max(...sc) : 0; return m > acc.value ? { value: m, session: s } : acc; }, { value: -1, session: sessions[0] });
   function Card(v, label, s) { return h('div', { className: 'pb-card' }, h('div', { className: 'pb-value' }, v), h('div', { className: 'pb-label' }, label), s && h('div', { className: 'pb-meta' }, `${fmtLong(s.date)} · #${s.sessionNumber ?? '—'}`)); }
   return h('div', { className: 'pb-grid' },
     Card(bestScore.totalScore, 'Highest total score', bestScore),
     Card(round1(deriveSession(bestAvg).averageScore), 'Highest average', bestAvg),
     Card(bestX.xCount || 0, 'Most Xs', bestX),
-    Card(bestSeries.value, 'Best series', bestSeries.session));
+    Card(bestSeries.value, 'Best single sheet', bestSeries.session));
 }
 
 /* ---------- Shot analysis ---------- */
@@ -409,7 +417,8 @@ function SessionDetail({ session, onBack, allSessions }) {
   const d = deriveSession(session);
   const idx = allSessions.findIndex(s => s.id === session.id);
   const prev = idx > 0 ? allSessions[idx - 1] : null;
-  const series = session.series || [];
+  const sheets = sheetList(session);
+  const series = sheets.map(x => x.score);
   const strongIdx = series.length ? series.indexOf(Math.max(...series)) : -1;
   const weakIdx = series.length ? series.indexOf(Math.min(...series)) : -1;
   const lines = [];
@@ -424,8 +433,12 @@ function SessionDetail({ session, onBack, allSessions }) {
       `${round1(d.percentage)}% · avg ${round1(d.averageScore)} · ${session.xCount || 0} Xs · ${session.discipline || '—'} · ${session.distance || '—'}`),
     session.photoKey && h('div', { style: { marginTop: 14 } }, h('img', { src: `/api/photo?key=${session.photoKey}`, style: { width: '100%', borderRadius: 4, border: '1px solid var(--line)' } })),
     series.length > 0 && h(React.Fragment, null,
-      h('div', { className: 'section-label' }, 'Series'),
-      h('div', { className: 'card' }, h(SimpleBarChart, { points: series.map((v, i) => ({ label: 'S' + (i + 1), value: v })), colorFn: i => i === strongIdx ? '#6a9b6a' : i === weakIdx ? '#c1402f' : '#b1873c' }))),
+      h('div', { className: 'section-label' }, `Sheets — ${sheets.length} × ${SHOTS_PER_SHEET} shots`),
+      h('div', { className: 'card' }, h(SimpleBarChart, { points: sheets.map(x => ({ label: '#' + x.sheet, value: x.score })), colorFn: i => i === strongIdx ? '#6a9b6a' : i === weakIdx ? '#c1402f' : '#b1873c' })),
+      sheets.length > 1 && h('div', { className: 'card' },
+        h('div', { className: 'hist-row' }, h('span', null, 'Best sheet'), h('span', { className: 'mono' }, `#${sheets[strongIdx].sheet} — ${series[strongIdx]}`)),
+        h('div', { className: 'hist-row' }, h('span', null, 'Weakest sheet'), h('span', { className: 'mono' }, `#${sheets[weakIdx].sheet} — ${series[weakIdx]}`)),
+        h('div', { className: 'hist-row' }, h('span', null, 'Average per sheet'), h('span', { className: 'mono' }, round1(avg(series)))))),
     h('div', { className: 'section-label' }, 'Session analysis'),
     h('div', { className: 'card' }, lines.map((l, i) => h('p', { key: i, style: { margin: i === 0 ? 0 : '8px 0 0', fontSize: 13, color: 'var(--mute)', lineHeight: 1.5 } }, l))),
     session.notes && (session.notes.feltLike || session.notes.wentWell || session.notes.improve) && h(React.Fragment, null,
@@ -443,8 +456,9 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
   const [extracting, setExtracting] = useState(false);
   const [extractNote, setExtractNote] = useState(null);
   const [photoKey, setPhotoKey] = useState(null);
-  const [fields, setFields] = useState({ sessionNumber: '', discipline: '10m Air Pistol', distance: '10', totalShots: '60', totalScore: '', maxScore: '600', xCount: '' });
-  const [series, setSeries] = useState(['', '', '', '', '', '']);
+  const [fields, setFields] = useState({ sessionNumber: '', discipline: '10m Air Pistol', distance: '10', xCount: '' });
+  // Each sheet = 10 shots, max 100. Default to 3 sheets, the usual practice day.
+  const [sheets, setSheets] = useState([{ sheet: '1', score: '' }, { sheet: '2', score: '' }, { sheet: '3', score: '' }]);
   const [breakdown, setBreakdown] = useState({ ten: '', nine: '', eight: '', seven: '', six: '', fiveDown: '' });
   const [notes, setNotes] = useState({ feltLike: '', wentWell: '', improve: '' });
   const [saving, setSaving] = useState(false);
@@ -467,10 +481,15 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
         else if (result.extracted) setExtractNote('Extracted from your photo — check every field before saving.');
         const r = result.extracted || {};
         setFields({
-          sessionNumber: r.sessionNumber ?? '', discipline: r.discipline || '10m Air Pistol', distance: r.distance || '10',
-          totalShots: r.totalShots ?? '60', totalScore: r.totalScore ?? '', maxScore: r.maxScore ?? '600', xCount: r.xCount ?? '',
+          sessionNumber: r.sessionNumber ?? '', discipline: r.discipline || '10m Air Pistol',
+          distance: r.distance || '10', xCount: r.xCount ?? '',
         });
-        if (Array.isArray(r.series) && r.series.length) setSeries(r.series.map(String));
+        // A photographed sheet is normally one 10-shot sheet: use its total as that sheet's score.
+        if (r.totalScore != null) {
+          setSheets([{ sheet: String(r.sessionNumber ?? 1), score: String(r.totalScore) }]);
+        } else if (Array.isArray(r.series) && r.series.length) {
+          setSheets(r.series.map((v, i) => ({ sheet: String(i + 1), score: String(v) })));
+        }
         if ([r.tenCount, r.nineCount, r.eightCount, r.sevenCount, r.sixCount, r.fiveOrBelowCount].some(v => v != null)) {
           setBreakdown({ ten: r.tenCount ?? '', nine: r.nineCount ?? '', eight: r.eightCount ?? '', seven: r.sevenCount ?? '', six: r.sixCount ?? '', fiveDown: r.fiveOrBelowCount ?? '' });
         }
@@ -482,16 +501,24 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
   }
 
   function updateField(k, v) { setFields(f => ({ ...f, [k]: v })); }
-  function updateSeries(i, v) { setSeries(s => { const n = [...s]; n[i] = v; return n; }); }
-  const canSave = fields.totalScore !== '' && fields.maxScore !== '' && fields.totalShots !== '';
+  function updateSheet(i, key, v) { setSheets(s => { const n = [...s]; n[i] = { ...n[i], [key]: v }; return n; }); }
+  function addSheet() { setSheets(s => [...s, { sheet: String(s.length + 1), score: '' }]); }
+  function removeSheet(i) { setSheets(s => s.length > 1 ? s.filter((_, idx) => idx !== i) : s); }
+
+  // Totals are derived from the sheets — no separate typing needed.
+  const filledSheets = sheets.filter(s => s.score !== '' && !Number.isNaN(parseFloat(s.score)));
+  const liveTotal = filledSheets.reduce((a, s) => a + parseFloat(s.score), 0);
+  const liveMax = filledSheets.length * MAX_PER_SHEET;
+  const liveShots = filledSheets.length * SHOTS_PER_SHEET;
+  const canSave = filledSheets.length > 0;
 
   function handleSave() {
-    const seriesNums = series.map(v => parseFloat(v)).filter(v => !Number.isNaN(v));
+    const sheetObjs = filledSheets.map((s, i) => ({ sheet: Number(s.sheet) || i + 1, score: parseFloat(s.score) }));
     const draft = {
       date, sessionNumber: fields.sessionNumber ? Number(fields.sessionNumber) : null, discipline: fields.discipline,
-      distance: fields.distance ? `${fields.distance} m` : '', totalShots: Number(fields.totalShots) || 0,
-      totalScore: Number(fields.totalScore) || 0, maxScore: Number(fields.maxScore) || 0, xCount: Number(fields.xCount) || 0,
-      series: seriesNums,
+      distance: fields.distance ? `${fields.distance} m` : '', totalShots: liveShots,
+      totalScore: liveTotal, maxScore: liveMax, xCount: Number(fields.xCount) || 0,
+      series: sheetObjs,
       shotBreakdown: Object.values(breakdown).some(v => v !== '') ? {
         ten: Number(breakdown.ten) || 0, nine: Number(breakdown.nine) || 0, eight: Number(breakdown.eight) || 0,
         seven: Number(breakdown.seven) || 0, six: Number(breakdown.six) || 0, fiveDown: Number(breakdown.fiveDown) || 0,
@@ -531,19 +558,25 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
         h('div', { className: 'field' }, h('label', { className: 'label' }, 'Session #'), h('input', { className: 'input mono', value: fields.sessionNumber, onChange: e => updateField('sessionNumber', e.target.value) })),
         h('div', { className: 'field' }, h('label', { className: 'label' }, 'Distance (m)'), h('input', { className: 'input mono', value: fields.distance, onChange: e => updateField('distance', e.target.value) }))),
       h('div', { className: 'field' }, h('label', { className: 'label' }, 'Discipline'), h('input', { className: 'input', value: fields.discipline, onChange: e => updateField('discipline', e.target.value) })),
-      h('div', { className: 'row2' },
-        h('div', { className: 'field' }, h('label', { className: 'label' }, 'Total shots'), h('input', { className: 'input mono', value: fields.totalShots, onChange: e => updateField('totalShots', e.target.value) })),
-        h('div', { className: 'field' }, h('label', { className: 'label' }, 'Max score'), h('input', { className: 'input mono', value: fields.maxScore, onChange: e => updateField('maxScore', e.target.value) }))),
-      h('div', { className: 'row2' },
-        h('div', { className: 'field' }, h('label', { className: 'label' }, 'Total score'), h('input', { className: 'input mono', value: fields.totalScore, onChange: e => updateField('totalScore', e.target.value) })),
-        h('div', { className: 'field' }, h('label', { className: 'label' }, 'X count'), h('input', { className: 'input mono', value: fields.xCount, onChange: e => updateField('xCount', e.target.value) }))),
+
+      h('p', { className: 'label', style: { marginTop: 4, marginBottom: 8 } }, `Sheets today — ${SHOTS_PER_SHEET} shots each, out of ${MAX_PER_SHEET}`),
+      sheets.map((s, i) => h('div', { key: i, style: { display: 'grid', gridTemplateColumns: '78px 1fr 34px', gap: 8, alignItems: 'center', marginBottom: 8 } },
+        h('input', { className: 'input mono', style: { textAlign: 'center' }, value: s.sheet, onChange: e => updateSheet(i, 'sheet', e.target.value), 'aria-label': 'Sheet number' }),
+        h('input', { className: 'input mono', value: s.score, onChange: e => updateSheet(i, 'score', e.target.value), placeholder: `Score / ${MAX_PER_SHEET}`, inputMode: 'numeric' }),
+        h('button', { className: 'btn-ghost', style: { justifyContent: 'center', fontSize: 18 }, onClick: () => removeSheet(i), 'aria-label': 'Remove sheet' }, '×'))),
+      h('button', { className: 'btn-secondary', style: { marginBottom: 14 }, onClick: addSheet }, '+ Add another sheet'),
+
+      filledSheets.length > 0 && h('div', { className: 'card', style: { marginBottom: 14 } },
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
+          h('span', { style: { fontSize: 12.5, color: 'var(--mute)' } }, `${filledSheets.length} sheet${filledSheets.length > 1 ? 's' : ''} · ${liveShots} shots`),
+          h('span', { className: 'mono', style: { fontSize: 20, fontWeight: 700 } }, `${liveTotal} / ${liveMax}`))),
+
+      h('div', { className: 'field' }, h('label', { className: 'label' }, 'X / inner-10 count (optional)'),
+        h('input', { className: 'input mono', value: fields.xCount, onChange: e => updateField('xCount', e.target.value), inputMode: 'numeric' })),
       h('button', { className: 'btn-primary', disabled: !canSave, onClick: () => setStep(4) }, 'Continue')),
 
     step === 4 && h(React.Fragment, null,
-      h('p', { className: 'label', style: { marginBottom: 8 } }, 'Series scores (optional)'),
-      series.map((v, i) => h('div', { key: i, style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '6px 0' } },
-        h('span', { style: { fontSize: 13.5 } }, `Series ${i + 1}`), h('input', { className: 'input mono', value: v, onChange: e => updateSeries(i, e.target.value), placeholder: '—' }))),
-      h('p', { className: 'label', style: { marginTop: 18, marginBottom: 8 } }, 'Shot value breakdown (optional)'),
+      h('p', { className: 'label', style: { marginBottom: 8 } }, 'Shot value breakdown (optional) — across all sheets today'),
       h('div', { className: 'breakdown-grid' }, [['ten', '10s'], ['nine', '9s'], ['eight', '8s'], ['seven', '7s'], ['six', '6s'], ['fiveDown', '≤5']].map(([k, label]) =>
         h('div', { key: k, className: 'breakdown-field' }, h('label', null, label), h('input', { value: breakdown[k], onChange: e => setBreakdown({ ...breakdown, [k]: e.target.value }), placeholder: '0' })))),
       h('div', { className: 'field', style: { marginTop: 18 } }, h('label', { className: 'label' }, "How did today's session feel?"), h('textarea', { className: 'textarea', value: notes.feltLike, onChange: e => setNotes({ ...notes, feltLike: e.target.value }) })),
