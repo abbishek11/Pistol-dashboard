@@ -95,6 +95,38 @@ body {
   color: var(--paper); font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 7px 6px; text-align: center; }
 .error-banner { background: #3a2420; border: 1px solid var(--ring-red); color: var(--paper); border-radius: 4px; padding: 12px; font-size: 13px; margin-bottom: 14px; }
 
+/* ---------- shot calculator ---------- */
+.calc-overlay { position: fixed; inset: 0; background: rgba(10,12,14,0.86); z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
+.calc-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px 10px 0 0; width: 100%; max-width: 520px;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); max-height: 92vh; overflow-y: auto; }
+@media (min-width: 600px) { .calc-overlay { align-items: center; } .calc-panel { border-radius: 10px; } }
+.calc-total { font-family: 'JetBrains Mono', monospace; font-size: 38px; font-weight: 700; line-height: 1; }
+.calc-shots { display: flex; flex-wrap: wrap; gap: 5px; margin: 12px 0; min-height: 30px; }
+.calc-chip { background: var(--surface-raised); border: 1px solid var(--line); border-radius: 3px; padding: 4px 9px;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+.calc-chip.x { border-color: var(--brass); color: var(--brass); }
+.calc-pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.calc-key { background: var(--surface-raised); border: 1px solid var(--line); border-radius: 6px; color: var(--paper);
+  font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 600; padding: 15px 0; cursor: pointer; }
+.calc-key:active { background: var(--ring-red); }
+.calc-key.wide { grid-column: span 2; font-family: 'Archivo', sans-serif; font-size: 14px; font-weight: 600; }
+.calc-key.x { border-color: var(--brass); color: var(--brass); }
+
+/* ---------- sheet gallery ---------- */
+.gal-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 600px) { .gal-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 820px) { .gal-grid { grid-template-columns: repeat(4, 1fr); } }
+.gal-item { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; cursor: pointer; }
+.gal-item img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: var(--surface-raised); }
+.gal-meta { padding: 7px 8px; }
+.gal-score { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; }
+.gal-date { font-size: 10.5px; color: var(--mute); margin-top: 1px; }
+.lightbox { position: fixed; inset: 0; background: rgba(8,9,11,0.95); z-index: 70; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 20px; }
+.lightbox img { max-width: 100%; max-height: 78vh; border-radius: 4px; }
+.thumb-strip { display: flex; gap: 8px; overflow-x: auto; margin-top: 10px; }
+.thumb-strip img { height: 90px; border-radius: 4px; border: 1px solid var(--line); cursor: pointer; }
+
 /* ---------- responsive: Samsung Fold cover screen vs unfolded screen, and tablets/desktop ---------- */
 /* Fold cover screen (~320-374px wide) — slightly tighter spacing so nothing crowds */
 @media (max-width: 360px) {
@@ -156,7 +188,9 @@ function deriveSession(s) {
 // Sheets may be stored as plain numbers (older sessions) or {sheet, score} objects.
 function sheetList(s) {
   const raw = (s && s.series) || [];
-  return raw.map((v, i) => (typeof v === 'number' ? { sheet: i + 1, score: v } : { sheet: v.sheet ?? i + 1, score: v.score ?? 0 }));
+  return raw.map((v, i) => (typeof v === 'number'
+    ? { sheet: i + 1, score: v, shots: [], photoKey: null }
+    : { sheet: v.sheet ?? i + 1, score: v.score ?? 0, shots: v.shots || [], photoKey: v.photoKey || null }));
 }
 function sheetScores(s) { return sheetList(s).map(x => x.score); }
 const SHOTS_PER_SHEET = 10;
@@ -264,7 +298,7 @@ function App() {
   const openSession = openId ? sessions.find(s => s.id === openId) : null;
   if (openSession) return h(SessionDetail, { session: openSession, onBack: () => setOpenId(null), allSessions: sortedAsc });
 
-  const titles = { dashboard: 'Dashboard', history: 'Session History', progress: 'Progress & Trends', bests: 'Personal Bests', shots: 'Shot Analysis' };
+  const titles = { dashboard: 'Dashboard', history: 'Session History', progress: 'Progress & Trends', bests: 'Personal Bests', shots: 'Shot Analysis', sheets: 'Sheet Photos' };
 
   return h('div', null,
     h('div', { className: 'topbar' },
@@ -279,12 +313,14 @@ function App() {
       tab === 'progress' && h(ProgressTab, { sessionsAsc: sortedAsc }),
       tab === 'bests' && h(BestsTab, { sessions }),
       tab === 'shots' && h(ShotAnalysisTab, { sessions: sortedDesc }),
+      tab === 'sheets' && h(GalleryTab, { sessions: sortedDesc, onOpenSession: setOpenId }),
     ),
     h('button', { className: 'fab', onClick: () => setAdding(true) }, '+'),
     h('nav', { className: 'bottomnav' },
       h('div', { className: 'bottomnav-inner', style: { display: 'flex', width: '100%' } },
-        ['dashboard', 'history', 'progress', 'bests', 'shots'].map(t =>
-          h('button', { key: t, className: `navbtn ${tab === t ? 'active' : ''}`, onClick: () => setTab(t) }, titles[t].split(' ')[0]))))
+        ['dashboard', 'history', 'progress', 'bests', 'shots', 'sheets'].map(t =>
+          h('button', { key: t, className: `navbtn ${tab === t ? 'active' : ''}`, onClick: () => setTab(t) },
+            t === 'sheets' ? 'Sheets' : titles[t].split(' ')[0]))))
   );
 }
 
@@ -412,6 +448,63 @@ function ShotAnalysisTab({ sessions }) {
         `${stats.ninePlusPct}% of shots were 9 or 10 — ` + (stats.ninePlusPct >= 55 ? 'most points are coming from clean, high-value shots.' : "there's room to convert 8s into 9s and 10s."))));
 }
 
+/* ---------- Shot calculator: tap each shot, it adds up ---------- */
+function ShotCalculator({ sheetNumber, initialShots, onDone, onCancel }) {
+  const [shots, setShots] = useState(initialShots && initialShots.length ? initialShots : []);
+  const total = shots.reduce((a, s) => a + s.value, 0);
+  const keys = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+
+  function tap(value, isX) { setShots(s => [...s, { value, x: !!isX }]); }
+  function undo() { setShots(s => s.slice(0, -1)); }
+
+  return h('div', { className: 'calc-overlay', onClick: e => { if (e.target === e.currentTarget) onCancel(); } },
+    h('div', { className: 'calc-panel' },
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } },
+        h('div', null,
+          h('p', { className: 'eyebrow', style: { margin: 0 } }, `Sheet ${sheetNumber} · shot ${shots.length + 1}`),
+          h('div', { className: 'calc-total' }, total, h('span', { style: { fontSize: 16, color: 'var(--mute)' } }, ` / ${MAX_PER_SHEET}`))),
+        h('button', { className: 'btn-ghost', style: { fontSize: 20 }, onClick: onCancel }, '✕')),
+
+      h('div', { className: 'calc-shots' },
+        shots.length === 0
+          ? h('span', { style: { fontSize: 12.5, color: 'var(--mute-2)' } }, 'Tap a value for each shot as you score the sheet')
+          : shots.map((s, i) => h('span', { key: i, className: `calc-chip ${s.x ? 'x' : ''}` }, s.x ? 'X' : s.value))),
+
+      shots.length > SHOTS_PER_SHEET && h('p', { style: { fontSize: 12, color: 'var(--brass)', margin: '0 0 10px' } },
+        `That's ${shots.length} shots — more than the usual ${SHOTS_PER_SHEET} on a sheet.`),
+
+      h('div', { className: 'calc-pad' },
+        h('button', { className: 'calc-key x', onClick: () => tap(10, true) }, 'X'),
+        keys.map(k => h('button', { key: k, className: 'calc-key', onClick: () => tap(k, false) }, k)),
+        h('button', { className: 'calc-key', onClick: () => tap(0, false) }, '0'),
+        h('button', { className: 'calc-key wide', onClick: undo, disabled: !shots.length }, '← Undo'),
+        h('button', { className: 'calc-key wide', style: { background: 'var(--ring-red)', borderColor: 'var(--ring-red)' }, onClick: () => onDone(shots) }, 'Done'))));
+}
+
+/* ---------- Sheet gallery: every saved sheet photo, newest first ---------- */
+function GalleryTab({ sessions, onOpenSession }) {
+  const [zoom, setZoom] = useState(null);
+  const items = [];
+  sessions.forEach(s => sheetList(s).forEach(sh => { if (sh.photoKey) items.push({ ...sh, date: s.date, sessionId: s.id }); }));
+
+  if (items.length === 0) return h('div', { className: 'empty' },
+    'No sheet photos yet. When you log a day, tap the camera on a sheet row — every photo you add shows up here so you can scan back through your grouping over time.');
+
+  return h(React.Fragment, null,
+    h('div', { className: 'section-label' }, h('span', null, 'All sheets'), h('span', null, `${items.length} photos`)),
+    h('div', { className: 'gal-grid' }, items.map((it, i) =>
+      h('div', { key: i, className: 'gal-item', onClick: () => setZoom(it) },
+        h('img', { src: `/api/photo?key=${it.photoKey}`, loading: 'lazy', alt: `Sheet ${it.sheet}` }),
+        h('div', { className: 'gal-meta' },
+          h('div', { className: 'gal-score' }, `${it.score}/${MAX_PER_SHEET}`),
+          h('div', { className: 'gal-date' }, `${fmtShort(it.date)} · sheet ${it.sheet}`))))),
+    zoom && h('div', { className: 'lightbox', onClick: () => setZoom(null) },
+      h('img', { src: `/api/photo?key=${zoom.photoKey}`, alt: 'Sheet' }),
+      h('p', { style: { color: 'var(--paper)', marginTop: 14, fontSize: 14 } },
+        `${fmtLong(zoom.date)} · sheet ${zoom.sheet} · ${zoom.score}/${MAX_PER_SHEET}`),
+      h('button', { className: 'btn-ghost', style: { marginTop: 8 }, onClick: () => setZoom(null) }, 'Close')));
+}
+
 /* ---------- Session detail ---------- */
 function SessionDetail({ session, onBack, allSessions }) {
   const d = deriveSession(session);
@@ -432,6 +525,10 @@ function SessionDetail({ session, onBack, allSessions }) {
     h('p', { style: { color: 'var(--mute)', fontSize: 13, marginTop: 4 } },
       `${round1(d.percentage)}% · avg ${round1(d.averageScore)} · ${session.xCount || 0} Xs · ${session.discipline || '—'} · ${session.distance || '—'}`),
     session.photoKey && h('div', { style: { marginTop: 14 } }, h('img', { src: `/api/photo?key=${session.photoKey}`, style: { width: '100%', borderRadius: 4, border: '1px solid var(--line)' } })),
+    sheets.some(x => x.photoKey) && h(React.Fragment, null,
+      h('div', { className: 'section-label' }, 'Sheet photos'),
+      h('div', { className: 'thumb-strip' }, sheets.filter(x => x.photoKey).map((x, i) =>
+        h('img', { key: i, src: `/api/photo?key=${x.photoKey}`, alt: `Sheet ${x.sheet}`, loading: 'lazy' })))),
     series.length > 0 && h(React.Fragment, null,
       h('div', { className: 'section-label' }, `Sheets — ${sheets.length} × ${SHOTS_PER_SHEET} shots`),
       h('div', { className: 'card' }, h(SimpleBarChart, { points: sheets.map(x => ({ label: '#' + x.sheet, value: x.score })), colorFn: i => i === strongIdx ? '#6a9b6a' : i === weakIdx ? '#c1402f' : '#b1873c' })),
@@ -462,6 +559,9 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
   const [breakdown, setBreakdown] = useState({ ten: '', nine: '', eight: '', seven: '', six: '', fiveDown: '' });
   const [notes, setNotes] = useState({ feltLike: '', wentWell: '', improve: '' });
   const [saving, setSaving] = useState(false);
+  const [calcFor, setCalcFor] = useState(null);
+  const [uploadingIdx, setUploadingIdx] = useState(null);
+  const sheetFileRefs = useRef({});
   const fileRef = useRef(null);
   const existingForDate = existingSessions.filter(s => s.date === date);
 
@@ -505,6 +605,31 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
   function addSheet() { setSheets(s => [...s, { sheet: String(s.length + 1), score: '' }]); }
   function removeSheet(i) { setSheets(s => s.length > 1 ? s.filter((_, idx) => idx !== i) : s); }
 
+  // Calculator: tapping shots fills that sheet's score and remembers the individual shots.
+  function finishCalc(shotsTapped) {
+    const total = shotsTapped.reduce((a, s) => a + s.value, 0);
+    setSheets(s => { const n = [...s]; n[calcFor] = { ...n[calcFor], score: String(total), shots: shotsTapped }; return n; });
+    setCalcFor(null);
+  }
+
+  // Attach a photo to one sheet row.
+  function handleSheetPhoto(i, file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result.split(',')[1];
+      setUploadingIdx(i);
+      api.extract(base64, file.type || 'image/jpeg').then(result => {
+        setUploadingIdx(null);
+        updateSheet(i, 'photoKey', result.photoKey);
+        // If the sheet has no score yet and the photo could be read, offer what it found.
+        const r = result.extracted;
+        if (r && r.totalScore != null && !sheets[i].score) updateSheet(i, 'score', String(r.totalScore));
+      }).catch(() => setUploadingIdx(null));
+    };
+    reader.readAsDataURL(file);
+  }
+
   // Totals are derived from the sheets — no separate typing needed.
   const filledSheets = sheets.filter(s => s.score !== '' && !Number.isNaN(parseFloat(s.score)));
   const liveTotal = filledSheets.reduce((a, s) => a + parseFloat(s.score), 0);
@@ -513,16 +638,32 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
   const canSave = filledSheets.length > 0;
 
   function handleSave() {
-    const sheetObjs = filledSheets.map((s, i) => ({ sheet: Number(s.sheet) || i + 1, score: parseFloat(s.score) }));
+    const sheetObjs = filledSheets.map((s, i) => ({
+      sheet: Number(s.sheet) || i + 1, score: parseFloat(s.score),
+      shots: s.shots || [], photoKey: s.photoKey || null,
+    }));
+    // If shots were tapped in, the breakdown and X count come for free.
+    const allShots = sheetObjs.flatMap(s => s.shots);
+    const autoBreakdown = allShots.length ? {
+      ten: allShots.filter(s => s.value === 10).length,
+      nine: allShots.filter(s => s.value === 9).length,
+      eight: allShots.filter(s => s.value === 8).length,
+      seven: allShots.filter(s => s.value === 7).length,
+      six: allShots.filter(s => s.value === 6).length,
+      fiveDown: allShots.filter(s => s.value <= 5).length,
+    } : null;
+    const autoX = allShots.filter(s => s.x).length;
+    const typedBreakdown = Object.values(breakdown).some(v => v !== '') ? {
+      ten: Number(breakdown.ten) || 0, nine: Number(breakdown.nine) || 0, eight: Number(breakdown.eight) || 0,
+      seven: Number(breakdown.seven) || 0, six: Number(breakdown.six) || 0, fiveDown: Number(breakdown.fiveDown) || 0,
+    } : null;
     const draft = {
       date, sessionNumber: fields.sessionNumber ? Number(fields.sessionNumber) : null, discipline: fields.discipline,
-      distance: fields.distance ? `${fields.distance} m` : '', totalShots: liveShots,
-      totalScore: liveTotal, maxScore: liveMax, xCount: Number(fields.xCount) || 0,
+      distance: fields.distance ? `${fields.distance} m` : '', totalShots: allShots.length || liveShots,
+      totalScore: liveTotal, maxScore: liveMax,
+      xCount: Number(fields.xCount) || autoX,
       series: sheetObjs,
-      shotBreakdown: Object.values(breakdown).some(v => v !== '') ? {
-        ten: Number(breakdown.ten) || 0, nine: Number(breakdown.nine) || 0, eight: Number(breakdown.eight) || 0,
-        seven: Number(breakdown.seven) || 0, six: Number(breakdown.six) || 0, fiveDown: Number(breakdown.fiveDown) || 0,
-      } : null,
+      shotBreakdown: autoBreakdown || typedBreakdown,
       notes, photoKey,
     };
     setSaving(true);
@@ -560,10 +701,20 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
       h('div', { className: 'field' }, h('label', { className: 'label' }, 'Discipline'), h('input', { className: 'input', value: fields.discipline, onChange: e => updateField('discipline', e.target.value) })),
 
       h('p', { className: 'label', style: { marginTop: 4, marginBottom: 8 } }, `Sheets today — ${SHOTS_PER_SHEET} shots each, out of ${MAX_PER_SHEET}`),
-      sheets.map((s, i) => h('div', { key: i, style: { display: 'grid', gridTemplateColumns: '78px 1fr 34px', gap: 8, alignItems: 'center', marginBottom: 8 } },
-        h('input', { className: 'input mono', style: { textAlign: 'center' }, value: s.sheet, onChange: e => updateSheet(i, 'sheet', e.target.value), 'aria-label': 'Sheet number' }),
-        h('input', { className: 'input mono', value: s.score, onChange: e => updateSheet(i, 'score', e.target.value), placeholder: `Score / ${MAX_PER_SHEET}`, inputMode: 'numeric' }),
-        h('button', { className: 'btn-ghost', style: { justifyContent: 'center', fontSize: 18 }, onClick: () => removeSheet(i), 'aria-label': 'Remove sheet' }, '×'))),
+      sheets.map((s, i) => h('div', { key: i, className: 'card', style: { padding: 12, marginBottom: 8 } },
+        h('div', { style: { display: 'grid', gridTemplateColumns: '64px 1fr 30px', gap: 8, alignItems: 'center' } },
+          h('input', { className: 'input mono', style: { textAlign: 'center', padding: '9px 4px' }, value: s.sheet, onChange: e => updateSheet(i, 'sheet', e.target.value), 'aria-label': 'Sheet number' }),
+          h('input', { className: 'input mono', value: s.score, onChange: e => updateSheet(i, 'score', e.target.value), placeholder: `Score / ${MAX_PER_SHEET}`, inputMode: 'numeric' }),
+          h('button', { className: 'btn-ghost', style: { justifyContent: 'center', fontSize: 18 }, onClick: () => removeSheet(i), 'aria-label': 'Remove sheet' }, '×')),
+        h('div', { style: { display: 'flex', gap: 8, marginTop: 8 } },
+          h('button', { className: 'btn-secondary', style: { padding: '9px', fontSize: 13 }, onClick: () => setCalcFor(i) },
+            s.shots && s.shots.length ? `Shots: ${s.shots.length} tapped` : 'Score shot by shot'),
+          h('input', { type: 'file', accept: 'image/*', capture: 'environment', style: { display: 'none' },
+            ref: el => { sheetFileRefs.current[i] = el; },
+            onChange: e => handleSheetPhoto(i, e.target.files && e.target.files[0]) }),
+          h('button', { className: 'btn-secondary', style: { padding: '9px', fontSize: 13, flex: '0 0 44%' },
+            onClick: () => sheetFileRefs.current[i] && sheetFileRefs.current[i].click() },
+            uploadingIdx === i ? 'Saving…' : s.photoKey ? '✓ Photo' : 'Photo')))),
       h('button', { className: 'btn-secondary', style: { marginBottom: 14 }, onClick: addSheet }, '+ Add another sheet'),
 
       filledSheets.length > 0 && h('div', { className: 'card', style: { marginBottom: 14 } },
@@ -582,7 +733,13 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
       h('div', { className: 'field', style: { marginTop: 18 } }, h('label', { className: 'label' }, "How did today's session feel?"), h('textarea', { className: 'textarea', value: notes.feltLike, onChange: e => setNotes({ ...notes, feltLike: e.target.value }) })),
       h('div', { className: 'field' }, h('label', { className: 'label' }, 'What went well?'), h('textarea', { className: 'textarea', value: notes.wentWell, onChange: e => setNotes({ ...notes, wentWell: e.target.value }) })),
       h('div', { className: 'field' }, h('label', { className: 'label' }, 'What needs improvement?'), h('textarea', { className: 'textarea', value: notes.improve, onChange: e => setNotes({ ...notes, improve: e.target.value }) })),
-      h('button', { className: 'btn-primary', disabled: saving, onClick: handleSave }, saving ? 'Saving…' : 'Save session'))
+      h('button', { className: 'btn-primary', disabled: saving, onClick: handleSave }, saving ? 'Saving…' : 'Save session')),
+    calcFor !== null && h(ShotCalculator, {
+      sheetNumber: sheets[calcFor] ? sheets[calcFor].sheet : '',
+      initialShots: sheets[calcFor] ? sheets[calcFor].shots : [],
+      onDone: finishCalc,
+      onCancel: () => setCalcFor(null),
+    })
   ));
 }
 
