@@ -112,6 +112,23 @@ body {
 .calc-key.wide { grid-column: span 2; font-family: 'Archivo', sans-serif; font-size: 14px; font-weight: 600; }
 .calc-key.x { border-color: var(--brass); color: var(--brass); }
 
+
+/* ---------- portrait watermark ---------- */
+.hero-portrait {
+  position: absolute;
+  right: -14px;
+  bottom: -18px;
+  height: 148px;
+  opacity: 0.30;
+  pointer-events: none;
+  z-index: 0;
+  filter: grayscale(0.25) contrast(1.05);
+  mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
+}
+.topbar { min-height: 124px; }
+@media (min-width: 600px) { .hero-portrait { height: 180px; right: 4%; } }
+
 /* ---------- shot tally summary ---------- */
 .tally-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
 .tally-cell { text-align: center; background: var(--surface-raised); border: 1px solid var(--line); border-radius: 4px; padding: 9px 2px; }
@@ -203,7 +220,8 @@ const SHOTS_PER_SHEET = 10;
 const MAX_PER_SHEET = 100;
 function consistencyScore(sessions) {
   if (sessions.length < 2) return null;
-  const scores = sessions.map(s => s.totalScore);
+  // Compare per-sheet averages so sessions of different lengths are comparable.
+  const scores = sessions.map(s => { const sc = sheetScores(s); return sc.length ? avg(sc) : (s.maxScore ? (s.totalScore / s.maxScore) * MAX_PER_SHEET : 0); });
   const cv = avg(scores) ? stdev(scores) / avg(scores) : 0;
   return Math.max(0, Math.min(100, Math.round(100 - cv * 400)));
 }
@@ -308,6 +326,7 @@ function App() {
 
   return h('div', null,
     h('div', { className: 'topbar' },
+      tab === 'dashboard' && h('img', { className: 'hero-portrait', src: '/hero.webp', alt: '', 'aria-hidden': 'true' }),
       h('svg', { className: 'rings', viewBox: '0 0 200 200' },
         [90, 70, 50, 30, 12].map((r, i) => h('circle', { key: r, cx: 100, cy: 100, r, fill: 'none', stroke: '#c1402f', strokeWidth: 1.5, opacity: 0.12 + i * 0.05 }))),
       h('p', { className: 'eyebrow' }, tab === 'dashboard' ? 'AK Pistol Perform' : 'Range performance'),
@@ -335,13 +354,18 @@ function Dashboard({ sessions, sessionsAsc, goals, lastSavedId, onOpen }) {
   if (sessions.length === 0) return h('div', { className: 'empty' }, 'No sessions yet. Tap + to log your first one.');
   const latest = sessions[0], prev = sessions[1];
   const last30 = sessionsAsc.filter(s => daysAgo(s.date, latest.date) <= 30);
+  // Averages are per sheet (out of 100) so a 1-sheet session never drags the average down.
+  const allSheetsEver = sessions.flatMap(s => sheetScores(s));
+  const bestSheet = allSheetsEver.length ? Math.max(...allSheetsEver) : 0;
+  const avg30 = round1(avg(last30.flatMap(s => sheetScores(s))));
+  const avgAll = round1(avg(allSheetsEver));
   const pb = sessions.reduce((a, b) => b.totalScore > a.totalScore ? b : a, sessions[0]);
-  const avg30 = round1(avg(last30.map(s => s.totalScore)));
-  const avgAll = round1(avg(sessions.map(s => s.totalScore)));
-  const bestPct = round1(Math.max(...sessions.map(s => (s.totalScore / s.maxScore) * 100)));
   const consistency = consistencyScore(last30.length >= 2 ? last30 : sessions);
-  const totalShots = sessions.reduce((a, s) => a + s.totalShots, 0);
-  const trendPoints = sessionsAsc.slice(-14).map(s => ({ label: fmtShort(s.date), value: s.totalScore }));
+  const totalShots = sessions.reduce((a, s) => a + (s.totalShots || 0), 0);
+  const totalSheets = allSheetsEver.length;
+  const latestPerSheet = sheetScores(latest).length ? round1(avg(sheetScores(latest))) : null;
+  const prevPerSheet = prev && sheetScores(prev).length ? round1(avg(sheetScores(prev))) : null;
+  const trendPoints = sessionsAsc.slice(-14).map(s => ({ label: fmtShort(s.date), value: sheetScores(s).length ? round1(avg(sheetScores(s))) : 0 }));
   const saved = lastSavedId ? sessions.find(s => s.id === lastSavedId) : null;
 
   return h(React.Fragment, null,
@@ -353,15 +377,18 @@ function Dashboard({ sessions, sessionsAsc, goals, lastSavedId, onOpen }) {
         h('div', null,
           h('p', { className: 'eyebrow' }, `Latest session · ${fmtLong(latest.date)}`),
           h('div', { className: 'hero-score' }, `${latest.totalScore} `, h('span', null, `/ ${latest.maxScore}`)),
-          prev && h(TrendIndicator, { value: latest.totalScore - prev.totalScore, suffix: ' vs previous' })),
+          latestPerSheet !== null && h('p', { style: { fontSize: 13, color: 'var(--mute)', margin: '6px 0 0' } },
+            `${sheetScores(latest).length} sheets · ${latestPerSheet} avg per sheet`),
+          latestPerSheet !== null && prevPerSheet !== null &&
+            h(TrendIndicator, { value: round1(latestPerSheet - prevPerSheet), suffix: ' per sheet vs previous' })),
         h('div', { className: 'kpi-grid' },
-          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, pb.totalScore), h('div', { className: 'kpi-label' }, 'Personal best')),
-          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, avg30), h('div', { className: 'kpi-label' }, '30-day average')),
-          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, avgAll), h('div', { className: 'kpi-label' }, 'All-time average')),
-          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, bestPct + '%'), h('div', { className: 'kpi-label' }, 'Best score %')),
+          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, bestSheet), h('div', { className: 'kpi-label' }, 'Best sheet /100')),
+          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, avg30 || '—'), h('div', { className: 'kpi-label' }, '30-day avg / sheet')),
+          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, avgAll || '—'), h('div', { className: 'kpi-label' }, 'All-time avg / sheet')),
           h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, sessions.length), h('div', { className: 'kpi-label' }, 'Total sessions')),
-          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, totalShots.toLocaleString()), h('div', { className: 'kpi-label' }, 'Total shots'))),
-        h('div', { className: 'section-label' }, 'Score trend'),
+          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, totalSheets.toLocaleString()), h('div', { className: 'kpi-label' }, 'Total sheets to date')),
+          h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, totalShots.toLocaleString()), h('div', { className: 'kpi-label' }, 'Total shots to date'))),
+        h('div', { className: 'section-label' }, h('span', null, 'Average per sheet'), h('span', null, 'last 14 sessions')),
         h('div', { className: 'card' }, h(SimpleLineChart, { points: trendPoints })),
         consistency !== null && h(React.Fragment, null,
           h('div', { className: 'section-label' }, 'Consistency'),
@@ -589,14 +616,20 @@ function ShotCalculator({ sheetNumber, initialShots, onDone, onCancel }) {
     h('div', { className: 'calc-panel' },
       h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } },
         h('div', null,
-          h('p', { className: 'eyebrow', style: { margin: 0 } }, `Sheet ${sheetNumber} · shot ${shots.length + 1}`),
+          h('p', { className: 'eyebrow', style: { margin: 0 } },
+            `Sheet ${sheetNumber} · ${shots.length} of ${SHOTS_PER_SHEET} shots entered`),
           h('div', { className: 'calc-total' }, total, h('span', { style: { fontSize: 16, color: 'var(--mute)' } }, ` / ${MAX_PER_SHEET}`))),
         h('button', { className: 'btn-ghost', style: { fontSize: 20 }, onClick: onCancel }, '✕')),
 
       h('div', { className: 'calc-shots' },
         shots.length === 0
           ? h('span', { style: { fontSize: 12.5, color: 'var(--mute-2)' } }, 'Tap a value for each shot as you score the sheet')
-          : shots.map((s, i) => h('span', { key: i, className: `calc-chip ${s.x ? 'x' : ''}` }, s.x ? 'X' : s.value))),
+          : shots.map((s, i) => h('span', { key: i, className: `calc-chip ${s.x ? 'x' : ''}` },
+              h('span', { style: { fontSize: 9, color: 'var(--mute-2)', marginRight: 4 } }, i + 1),
+              s.x ? 'X' : s.value))),
+
+      shots.length === SHOTS_PER_SHEET && h('p', { style: { fontSize: 12, color: 'var(--good)', margin: '0 0 10px' } },
+        `All ${SHOTS_PER_SHEET} shots entered — total ${total}.`),
 
       shots.length > SHOTS_PER_SHEET && h('p', { style: { fontSize: 12, color: 'var(--brass)', margin: '0 0 10px' } },
         `That's ${shots.length} shots — more than the usual ${SHOTS_PER_SHEET} on a sheet.`),
@@ -609,6 +642,71 @@ function ShotCalculator({ sheetNumber, initialShots, onDone, onCancel }) {
         h('button', { className: 'calc-key wide', style: { background: 'var(--ring-red)', borderColor: 'var(--ring-red)' }, onClick: () => onDone(shots) }, 'Done'))));
 }
 
+/* ---------- Crop tool: trim the photo to just the sheet before saving ---------- */
+function CropTool({ src, onDone, onCancel }) {
+  const imgRef = useRef(null);
+  const boxRef = useRef(null);
+  const [box, setBox] = useState({ x: 8, y: 8, w: 84, h: 84 }); // percentages
+  const drag = useRef(null);
+
+  function startDrag(mode, e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const pt = e.touches ? e.touches[0] : e;
+    drag.current = { mode, startX: pt.clientX, startY: pt.clientY, box: { ...box } };
+  }
+  function onMove(e) {
+    if (!drag.current || !boxRef.current) return;
+    const pt = e.touches ? e.touches[0] : e;
+    const rect = boxRef.current.getBoundingClientRect();
+    const dx = ((pt.clientX - drag.current.startX) / rect.width) * 100;
+    const dy = ((pt.clientY - drag.current.startY) / rect.height) * 100;
+    const b = drag.current.box;
+    if (drag.current.mode === 'move') {
+      setBox({ ...b, x: Math.min(100 - b.w, Math.max(0, b.x + dx)), y: Math.min(100 - b.h, Math.max(0, b.y + dy)) });
+    } else {
+      setBox({ ...b, w: Math.min(100 - b.x, Math.max(15, b.w + dx)), h: Math.min(100 - b.y, Math.max(15, b.h + dy)) });
+    }
+  }
+  function endDrag() { drag.current = null; }
+
+  function apply() {
+    const img = imgRef.current;
+    if (!img) return;
+    const nw = img.naturalWidth, nh = img.naturalHeight;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round((box.w / 100) * nw);
+    canvas.height = Math.round((box.h / 100) * nh);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, (box.x / 100) * nw, (box.y / 100) * nh, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+    onDone(canvas.toDataURL('image/jpeg', 0.9));
+  }
+
+  return h('div', { className: 'calc-overlay', onMouseMove: onMove, onMouseUp: endDrag, onTouchMove: onMove, onTouchEnd: endDrag },
+    h('div', { className: 'calc-panel' },
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 } },
+        h('span', { style: { fontSize: 15, fontWeight: 600 } }, 'Crop to the sheet'),
+        h('button', { className: 'btn-ghost', style: { fontSize: 20 }, onClick: onCancel }, '✕')),
+      h('p', { style: { fontSize: 12, color: 'var(--mute)', margin: '0 0 10px' } }, 'Drag the box to move it, or the corner handle to resize.'),
+      h('div', { ref: boxRef, style: { position: 'relative', userSelect: 'none', touchAction: 'none' } },
+        h('img', { ref: imgRef, src, alt: 'Crop', style: { width: '100%', display: 'block', borderRadius: 4 } }),
+        h('div', {
+          onMouseDown: e => startDrag('move', e), onTouchStart: e => startDrag('move', e),
+          style: {
+            position: 'absolute', left: box.x + '%', top: box.y + '%', width: box.w + '%', height: box.h + '%',
+            border: '2px solid var(--ring-red)', boxShadow: '0 0 0 9999px rgba(10,12,14,0.55)', cursor: 'move',
+          } },
+          h('div', {
+            onMouseDown: e => startDrag('resize', e), onTouchStart: e => startDrag('resize', e),
+            style: {
+              position: 'absolute', right: -11, bottom: -11, width: 24, height: 24, borderRadius: '50%',
+              background: 'var(--ring-red)', border: '2px solid var(--paper)', cursor: 'nwse-resize',
+            } }))),
+      h('div', { style: { display: 'flex', gap: 8, marginTop: 14 } },
+        h('button', { className: 'btn-secondary', onClick: () => onDone(src) }, 'Use full photo'),
+        h('button', { className: 'btn-primary', onClick: apply }, 'Crop & save'))));
+}
+
 /* ---------- Sheet gallery: every saved sheet photo, newest first ---------- */
 function GalleryTab({ sessions, onOpenSession }) {
   const [zoom, setZoom] = useState(null);
@@ -618,14 +716,23 @@ function GalleryTab({ sessions, onOpenSession }) {
   if (items.length === 0) return h('div', { className: 'empty' },
     'No sheet photos yet. When you log a day, tap the camera on a sheet row — every photo you add shows up here so you can scan back through your grouping over time.');
 
+  // Group the photos by the day they were shot.
+  const byDate = {};
+  items.forEach(it => { (byDate[it.date] = byDate[it.date] || []).push(it); });
+  const dates = Object.keys(byDate).sort().reverse();
+
   return h(React.Fragment, null,
-    h('div', { className: 'section-label' }, h('span', null, 'All sheets'), h('span', null, `${items.length} photos`)),
-    h('div', { className: 'gal-grid' }, items.map((it, i) =>
-      h('div', { key: i, className: 'gal-item', onClick: () => setZoom(it) },
-        h('img', { src: `/api/photo?key=${it.photoKey}`, loading: 'lazy', alt: `Sheet ${it.sheet}` }),
-        h('div', { className: 'gal-meta' },
-          h('div', { className: 'gal-score' }, `${it.score}/${MAX_PER_SHEET}`),
-          h('div', { className: 'gal-date' }, `${fmtShort(it.date)} · sheet ${it.sheet}`))))),
+    h('div', { className: 'section-label' }, h('span', null, 'All sheets'), h('span', null, `${items.length} photos · ${dates.length} days`)),
+    dates.map(d => h('div', { key: d, style: { marginBottom: 20 } },
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 } },
+        h('span', { style: { fontSize: 14, fontWeight: 600 } }, fmtLong(d)),
+        h('span', { style: { fontSize: 11.5, color: 'var(--mute)' } }, `${byDate[d].length} sheet${byDate[d].length > 1 ? 's' : ''}`)),
+      h('div', { className: 'gal-grid' }, byDate[d].map((it, i) =>
+        h('div', { key: i, className: 'gal-item', onClick: () => setZoom(it) },
+          h('img', { src: `/api/photo?key=${it.photoKey}`, loading: 'lazy', alt: `Sheet ${it.sheet}` }),
+          h('div', { className: 'gal-meta' },
+            h('div', { className: 'gal-score' }, `${it.score}/${MAX_PER_SHEET}`),
+            h('div', { className: 'gal-date' }, `${fmtShort(it.date)} · sheet ${it.sheet}`))))))),
     zoom && h('div', { className: 'lightbox', onClick: () => setZoom(null) },
       h('img', { src: `/api/photo?key=${zoom.photoKey}`, alt: 'Sheet' }),
       h('p', { style: { color: 'var(--paper)', marginTop: 14, fontSize: 14 } },
@@ -690,9 +797,14 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
   const [calcFor, setCalcFor] = useState(null);
   const [uploadingIdx, setUploadingIdx] = useState(null);
   const [zoomSrc, setZoomSrc] = useState(null);
+  const [cropFor, setCropFor] = useState(null);
   const sheetFileRefs = useRef({});
   const fileRef = useRef(null);
   const existingForDate = existingSessions.filter(s => s.date === date);
+  // Default to the next session number for this date.
+  useEffect(() => {
+    if (!fields.sessionNumber) setFields(f => ({ ...f, sessionNumber: String(existingForDate.length + 1) }));
+  }, [date]);
 
   function handleFile(e) {
     const file = e.target.files && e.target.files[0];
@@ -741,16 +853,21 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
     setCalcFor(null);
   }
 
-  // Attach a photo to one sheet row.
+  // Attach a photo to one sheet row — offer cropping first.
   function handleSheetPhoto(i, file) {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result;
-      const base64 = dataUrl.split(',')[1];
-      // Show the photo straight away, before the upload finishes.
-      updateSheet(i, 'preview', dataUrl);
-      setUploadingIdx(i);
+    reader.onload = () => setCropFor({ index: i, src: reader.result });
+    reader.readAsDataURL(file);
+  }
+
+  function uploadCropped(i, dataUrl) {
+    setCropFor(null);
+    const base64 = dataUrl.split(',')[1];
+    // Show the photo straight away, before the upload finishes.
+    updateSheet(i, 'preview', dataUrl);
+    setUploadingIdx(i);
+    {
       api.extract(base64, file.type || 'image/jpeg').then(result => {
         setUploadingIdx(null);
         setSheets(s => {
@@ -771,8 +888,7 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
           return n;
         });
       }).catch(() => { setUploadingIdx(null); updateSheet(i, 'readFailed', true); });
-    };
-    reader.readAsDataURL(file);
+    }
   }
 
   // Totals are derived from the sheets — no separate typing needed.
@@ -857,33 +973,30 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
     h('div', { className: 'add-flow-inner' },
     h('div', { className: 'back-row', onClick: onCancel }, '✕ Cancel'),
     h('h2', { style: { margin: '0 0 16px', fontSize: 19, fontWeight: 700 } }, 'Log session'),
-    h('div', { className: 'steps' }, [1, 2, 3, 4].map(n => h('div', { key: n, className: `step-dot ${step >= n ? 'done' : ''}` }))),
+    h('div', { className: 'steps' }, [1, 3, 4].map(n => h('div', { key: n, className: `step-dot ${step >= n ? 'done' : ''}` }))),
 
     step === 1 && h(React.Fragment, null,
       h('div', { className: 'field' }, h('label', { className: 'label' }, 'Practice date'),
         h('input', { type: 'date', className: 'input', value: date, onChange: e => setDate(e.target.value) })),
       existingForDate.length > 0 && h('p', { style: { fontSize: 12.5, color: 'var(--brass)', marginBottom: 14 } },
         `${existingForDate.length} session(s) already logged for this date — this will be added as another one.`),
-      h('button', { className: 'btn-primary', onClick: () => setStep(2) }, 'Continue')),
-
-    step === 2 && h(React.Fragment, null,
-      h('input', { ref: fileRef, type: 'file', accept: 'image/*', capture: 'environment', style: { display: 'none' }, onChange: handleFile }),
-      extracting
-        ? h('div', { className: 'upload' }, h('div', { className: 'mono spinner', style: { fontSize: 22, marginBottom: 8 } }, '◐'), h('p', { style: { margin: 0 } }, 'Reading your score sheet…'))
-        : h('div', { className: 'upload', onClick: () => fileRef.current && fileRef.current.click() },
-            h('p', { style: { margin: '0 0 2px', color: 'var(--paper)', fontWeight: 500 } }, "Upload today's shooting sheet"),
-            h('p', { style: { margin: 0, fontSize: 12 } }, 'Photo or file — JPG, PNG, HEIC')),
-      h('div', { style: { margin: '14px 0', textAlign: 'center', color: 'var(--mute-2)', fontSize: 12 } }, 'or'),
-      h('button', { className: 'btn-secondary', onClick: () => setStep(3) }, 'Enter data manually')),
+      h('button', { className: 'btn-primary', onClick: () => setStep(3) }, 'Continue')),
 
     step === 3 && h(React.Fragment, null,
       extractNote && h('p', { style: { fontSize: 12.5, color: 'var(--mute)', marginBottom: 12 } }, extractNote),
       h('div', { className: 'row2' },
-        h('div', { className: 'field' }, h('label', { className: 'label' }, 'Session #'), h('input', { className: 'input mono', value: fields.sessionNumber, onChange: e => updateField('sessionNumber', e.target.value) })),
+        h('div', { className: 'field' }, h('label', { className: 'label' }, 'Session of the day'),
+          h('select', { className: 'select', value: fields.sessionNumber, onChange: e => updateField('sessionNumber', e.target.value) },
+            h('option', { value: '' }, 'Session —'),
+            [1, 2, 3, 4, 5].map(n => h('option', { key: n, value: String(n) }, `Session ${n}`)))),
         h('div', { className: 'field' }, h('label', { className: 'label' }, 'Distance (m)'), h('input', { className: 'input mono', value: fields.distance, onChange: e => updateField('distance', e.target.value) }))),
       h('div', { className: 'field' }, h('label', { className: 'label' }, 'Discipline'), h('input', { className: 'input', value: fields.discipline, onChange: e => updateField('discipline', e.target.value) })),
 
-      h('p', { className: 'label', style: { marginTop: 4, marginBottom: 8 } }, `Sheets today — ${SHOTS_PER_SHEET} shots each, out of ${MAX_PER_SHEET}`),
+      h('div', { className: 'card', style: { marginBottom: 12, padding: '10px 14px' } },
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
+          h('span', { style: { fontSize: 13.5, fontWeight: 600 } }, fmtLong(date)),
+          h('span', { style: { fontSize: 12, color: 'var(--mute)' } }, fields.sessionNumber ? `Session ${fields.sessionNumber}` : ''))),
+      h('div', { className: 'section-label', style: { marginTop: 0 } }, h('span', null, 'Scoring upload'), h('span', null, `${SHOTS_PER_SHEET} shots per sheet`)),
       sheets.map((s, i) => h('div', { key: i, className: 'card', style: { padding: 12, marginBottom: 8 } },
         h('div', { style: { display: 'grid', gridTemplateColumns: '64px 1fr 30px', gap: 8, alignItems: 'center' } },
           h('input', { className: 'input mono', style: { textAlign: 'center', padding: '9px 4px' }, value: s.sheet, onChange: e => updateSheet(i, 'sheet', e.target.value), 'aria-label': 'Sheet number' }),
@@ -957,6 +1070,11 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
       initialShots: sheets[calcFor] ? sheets[calcFor].shots : [],
       onDone: finishCalc,
       onCancel: () => setCalcFor(null),
+    }),
+    cropFor && h(CropTool, {
+      src: cropFor.src,
+      onDone: dataUrl => uploadCropped(cropFor.index, dataUrl),
+      onCancel: () => setCropFor(null),
     }),
     zoomSrc && h('div', { className: 'lightbox', onClick: () => setZoomSrc(null) },
       h('img', { src: zoomSrc, alt: 'Sheet' }),

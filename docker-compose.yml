@@ -31,6 +31,7 @@ services:
       - ./index.html:/app/static/index.html:ro
       - ./sw.js:/app/static/sw.js:ro
       - ./manifest.json:/app/static/manifest.json:ro
+      - ./hero.webp:/app/static/hero.webp:ro
       - ./icons:/app/static/icons:ro
       - photos:/data/photos
 
