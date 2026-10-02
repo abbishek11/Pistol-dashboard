@@ -123,6 +123,46 @@ app.delete("/api/attendance", async (req, res) => {
   res.status(204).end();
 });
 
+app.get("/api/competitions", async (_req, res) => {
+  const { rows } = await pool.query("SELECT * FROM competitions ORDER BY comp_date DESC, id DESC");
+  res.json(rows);
+});
+
+app.post("/api/competitions", async (req, res) => {
+  const b = req.body;
+  if (!b.date) return res.status(400).send("Missing date");
+  const { rows } = await pool.query(
+    `INSERT INTO competitions (
+       comp_date, comp_name, lane, comp_no, athlete_name, event_no,
+       dra_rc_ru, series, penalty, total, remarks, notes
+     )
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+     RETURNING *`,
+    [
+      b.date,
+      b.compName ?? null,
+      b.lane ?? null,
+      b.compNo ?? null,
+      b.athleteName ?? null,
+      b.eventNo ?? null,
+      b.draRcRu ?? null,
+      JSON.stringify(b.series ?? []),
+      b.penalty ?? 0,
+      b.total ?? 0,
+      b.remarks ?? null,
+      b.notes ?? null,
+    ]
+  );
+  res.json(rows[0]);
+});
+
+app.delete("/api/competitions", async (req, res) => {
+  const id = Number(req.query.id);
+  if (!Number.isInteger(id)) return res.status(400).send("Missing or invalid id");
+  await pool.query("DELETE FROM competitions WHERE id = $1", [id]);
+  res.status(204).end();
+});
+
 app.get("/api/expenses", async (_req, res) => {
   const { rows } = await pool.query("SELECT * FROM expenses ORDER BY spend_date DESC, id DESC");
   res.json(rows);
