@@ -38,9 +38,11 @@ body {
 
 .bottomnav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--line);
   display: flex; overflow-x: auto; z-index: 40; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
-.navbtn { flex: 1 0 54px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none;
-  color: var(--text-faint); font-size: 10px; padding: 8px 4px 6px; cursor: pointer; font-family: inherit; white-space: nowrap; }
-.navbtn.active { color: var(--nav-accent, var(--accent-text)); font-weight: 600; }
+.navbtn { flex: 1 0 62px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none;
+  color: var(--text-mute); font-size: 12px; font-weight: 600; padding: 8px 6px 6px; cursor: pointer; font-family: inherit;
+  white-space: nowrap; border-radius: 9px; transition: color .15s ease, background-color .15s ease; }
+.navbtn.active { color: var(--nav-accent, var(--accent-text)); font-weight: 700;
+  background: color-mix(in srgb, var(--nav-accent, var(--accent-text)) 12%, transparent); }
 
 .content { padding: 18px 16px 20px; max-width: 520px; margin: 0 auto; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); }
@@ -92,6 +94,9 @@ body {
 
 .gauge-wrap { display: flex; align-items: center; gap: 16px; }
 .gauge-num { font-family: 'JetBrains Mono', monospace; font-size: 30px; font-weight: 700; }
+.header-back { position: absolute; top: 14px; left: 14px; z-index: 2; background: none; border: none;
+  color: var(--text-mute); font-size: 22px; line-height: 1; padding: 4px 8px; cursor: pointer; font-family: inherit; }
+.topbar:has(.header-back) .eyebrow, .topbar:has(.header-back) .title { padding-left: 34px; }
 .back-row { display: flex; align-items: center; gap: 6px; color: var(--text-mute); font-size: 13px; margin-bottom: 14px; cursor: pointer; }
 .steps { display: flex; gap: 4px; margin-bottom: 18px; }
 .step-dot { flex: 1; height: 3px; background: var(--line); border-radius: 2px; }
@@ -232,7 +237,7 @@ body {
   .content { padding: 14px 12px 18px; }
   .kpi-grid { gap: 8px; }
   .hero-score { font-size: 38px; }
-  .navbtn { font-size: 9.5px; flex: 1 0 48px; padding: 8px 2px 6px; }
+  .navbtn { font-size: 11.5px; flex: 1 0 56px; padding: 8px 4px 6px; }
   .money-big { font-size: 32px; }
 }
 
@@ -439,6 +444,7 @@ const api = {
   list: () => fetch('/api/sessions').then(r => r.json()).then(rows => rows.map(mapRow)),
   create: (draft) => fetch('/api/sessions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(draft) }).then(r => r.json()).then(mapRow),
   extract: (imageBase64, mediaType) => fetch('/api/extract-sheet', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ imageBase64, mediaType }) }).then(r => r.json()),
+  attachPhoto: (id, sheet, photoKey) => fetch('/api/sessions', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, sheet, photoKey }) }).then(r => r.json()).then(mapRow),
 
   listAttendance: () => fetch('/api/attendance').then(r => r.json()).then(rows => rows.map(mapAttendance)),
   addAttendance: (date) => fetch('/api/attendance', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ date }) }).then(r => r.json()).then(mapAttendance),
@@ -471,6 +477,29 @@ function App() {
   }
   useEffect(load, []);
 
+  // Android back button: pop one layer instead of closing the app.
+  // Depth 0 is the Dashboard, where back exits as normal.
+  const depth = (tab !== 'dashboard' ? 1 : 0) + (openId ? 1 : 0) + (adding ? 1 : 0);
+  const prevDepth = useRef(0);
+  useEffect(() => {
+    if (depth > prevDepth.current) {
+      try { window.history.pushState({ depth }, ''); } catch (e) { /* history unavailable */ }
+    }
+    prevDepth.current = depth;
+  }, [depth]);
+
+  useEffect(() => {
+    function onPop() {
+      // Innermost layer first, mirroring what the user sees.
+      if (adding) { setAdding(false); return; }
+      if (openId) { setOpenId(null); return; }
+      if (tab !== 'dashboard') { setTab('dashboard'); return; }
+      // Already home — let the browser handle it and leave.
+    }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [adding, openId, tab]);
+
   const sortedDesc = useMemo(() => [...sessions].sort((a, b) => a.date < b.date ? 1 : -1), [sessions]);
   const sortedAsc = useMemo(() => [...sessions].sort((a, b) => a.date > b.date ? 1 : -1), [sessions]);
 
@@ -488,7 +517,12 @@ function App() {
   if (adding) return h(AddSessionFlow, { onCancel: () => setAdding(false), onSave: handleSave, existingSessions: sessions });
 
   const openSession = openId ? sessions.find(s => s.id === openId) : null;
-  if (openSession) return h(SessionDetail, { session: openSession, onBack: () => setOpenId(null), allSessions: sortedAsc });
+  if (openSession) return h(SessionDetail, {
+    session: openSession,
+    onBack: () => setOpenId(null),
+    allSessions: sortedAsc,
+    onSessionUpdated: updated => setSessions(prev => prev.map(s => s.id === updated.id ? updated : s)),
+  });
 
   const titles = { dashboard: 'Dashboard', history: 'Session History', progress: 'Progress & Trends', bests: 'Personal Bests', shots: 'Shot Analysis', sheets: 'Sheet Photos', training: 'Training Log', comp: 'Competitions' };
   const theme = TAB_THEME[tab] || TAB_THEME.dashboard;
@@ -498,6 +532,9 @@ function App() {
       tab === 'dashboard' && h('img', { className: 'hero-portrait', src: '/hero.webp', alt: '', 'aria-hidden': 'true' }),
       h('svg', { className: 'rings', viewBox: '0 0 200 200' },
         [90, 70, 50, 30, 12].map((r, i) => h('circle', { key: r, cx: 100, cy: 100, r, fill: 'none', stroke: 'var(--accent)', strokeWidth: 1.5, opacity: 0.10 + i * 0.04 }))),
+      tab !== 'dashboard' && h('button', {
+        className: 'header-back', onClick: () => setTab('dashboard'), 'aria-label': 'Back to dashboard',
+      }, '\u2190'),
       h('p', { className: 'eyebrow' }, tab === 'dashboard' ? 'AK Pistol Perform' : 'Range performance'),
       h('h1', { className: 'title' }, tab === 'dashboard' ? 'Welcome Abbishek' : titles[tab])),
     h('div', { className: 'content' },
@@ -517,6 +554,7 @@ function App() {
         NAV_TABS.map(t =>
           h('button', {
             key: t, className: `navbtn ${tab === t ? 'active' : ''}`, onClick: () => setTab(t),
+            ref: tab === t ? (el => { if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' }); }) : null,
             style: tab === t ? { '--nav-accent': TAB_THEME[t].text } : null,
           }, NAV_LABELS[t]))))
   );
@@ -756,14 +794,118 @@ function BestsTab({ sessions }) {
 }
 
 /* ---------- Shot analysis ---------- */
+// Counts for one session: prefer the stored breakdown, fall back to the tapped shots.
+function sessionCounts(s) {
+  const b = breakdownStats(s.shotBreakdown);
+  if (b) return { ten: b.ten, nine: b.nine, eight: b.eight, seven: b.seven, six: b.six, fiveDown: b.fiveDown, total: b.total };
+  const shots = sheetList(s).flatMap(x => x.shots || []);
+  if (!shots.length) return null;
+  return {
+    ten: shots.filter(x => x.value === 10).length,
+    nine: shots.filter(x => x.value === 9).length,
+    eight: shots.filter(x => x.value === 8).length,
+    seven: shots.filter(x => x.value === 7).length,
+    six: shots.filter(x => x.value === 6).length,
+    fiveDown: shots.filter(x => x.value <= 5).length,
+    total: shots.length,
+  };
+}
+
+function sumCounts(list) {
+  return list.reduce((a, c) => ({
+    ten: a.ten + c.ten, nine: a.nine + c.nine, eight: a.eight + c.eight,
+    seven: a.seven + c.seven, six: a.six + c.six, fiveDown: a.fiveDown + c.fiveDown,
+    total: a.total + c.total,
+  }), { ten: 0, nine: 0, eight: 0, seven: 0, six: 0, fiveDown: 0, total: 0 });
+}
+
 function ShotAnalysisTab({ sessions }) {
   const withB = sessions.filter(s => breakdownStats(s.shotBreakdown));
   const [selId, setSelId] = useState(withB[0] ? withB[0].id : null);
-  if (withB.length === 0) return h('div', { className: 'empty' }, 'No shot-value breakdown recorded yet. Fill in the optional breakdown when logging a session to see this.');
+
+  // ---- All-time summary, across every session that has usable shot data ----
+  const counted = sessions.map(s => ({ s, c: sessionCounts(s) })).filter(x => x.c);
+  const allTime = counted.length ? sumCounts(counted.map(x => x.c)) : null;
+  const allSheets = sessions.flatMap(s => sheetScores(s));
+  const dates = sessions.map(s => s.date).sort();
+  const pctOf = (n, total) => total ? round1((n / total) * 100) : 0;
+
+  // Recent form: the last 10 sessions by date, for comparison against all time.
+  const recentCounted = [...counted]
+    .sort((a, b) => a.s.date < b.s.date ? 1 : -1)
+    .slice(0, 10);
+  const recent = recentCounted.length ? sumCounts(recentCounted.map(x => x.c)) : null;
+
+  let bestSheet = null;
+  sessions.forEach(s => sheetList(s).forEach(x => {
+    if (!bestSheet || x.score > bestSheet.score) bestSheet = { score: x.score, sheet: x.sheet, date: s.date };
+  }));
+
+  const bands = [['10s', 'ten'], ['9s', 'nine'], ['8s', 'eight'], ['7s', 'seven'], ['6s', 'six'], ['\u22645', 'fiveDown']];
+  const bandColor = k => (k === 'ten' || k === 'nine') ? 'var(--good-text)' : (k === 'eight' || k === 'seven') ? 'var(--warn-text)' : 'var(--bad-text)';
+
+  const summary = allTime && h(React.Fragment, null,
+    h('div', { className: 'section-label', style: { marginTop: 0 } },
+      h('span', null, 'All-time summary'),
+      h('span', null, dates.length ? `${fmtShort(dates[0])} \u2013 ${fmtShort(dates[dates.length - 1])}` : '')),
+    h('div', { className: 'kpi-grid' },
+      h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, allTime.total.toLocaleString()), h('div', { className: 'kpi-label' }, 'Shots counted')),
+      h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, allSheets.length), h('div', { className: 'kpi-label' }, 'Sheets shot')),
+      h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, sessions.length), h('div', { className: 'kpi-label' }, 'Sessions')),
+      h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, allSheets.length ? round1(avg(allSheets)) : '\u2014'), h('div', { className: 'kpi-label' }, 'Avg per sheet')),
+      h('div', { className: 'kpi' }, h('div', { className: 'kpi-value' }, pctOf(allTime.ten + allTime.nine, allTime.total) + '%'), h('div', { className: 'kpi-label' }, '9+ all time')),
+      bestSheet && h('div', { className: 'kpi' },
+        h('div', { className: 'kpi-value' }, bestSheet.score),
+        h('div', { className: 'kpi-label' }, `Best sheet \u00b7 ${fmtShort(bestSheet.date)}`))),
+
+    h('div', { className: 'section-label' }, 'Every shot ever recorded'),
+    h('div', { className: 'card' },
+      h('div', { className: 'tally-grid' }, bands.map(([label, key]) =>
+        h('div', { key: key, className: 'tally-cell' },
+          h('div', { className: 'tally-num', style: { color: bandColor(key) } }, allTime[key]),
+          h('div', { className: 'tally-lab' }, label)))),
+      h('div', { style: { marginTop: 12 } },
+        h(SimpleBarChart, {
+          points: bands.map(([label, key]) => ({ label, value: allTime[key] })),
+          colorFn: i => i <= 1 ? '#059669' : i <= 3 ? '#d97706' : '#dc2626',
+        }))),
+
+    recent && recentCounted.length >= 3 && h(React.Fragment, null,
+      h('div', { className: 'section-label' },
+        h('span', null, 'Recent form vs all time'),
+        h('span', null, `last ${recentCounted.length} sessions`)),
+      h('div', { className: 'card' },
+        bands.map(([label, key]) => {
+          const r = pctOf(recent[key], recent.total);
+          const a = pctOf(allTime[key], allTime.total);
+          const diff = round1(r - a);
+          // More high-value shots is good; more low-value shots is not.
+          const better = (key === 'ten' || key === 'nine') ? diff > 0 : diff < 0;
+          const flat = Math.abs(diff) < 0.5;
+          return h('div', { key: key, className: 'hist-row', style: { cursor: 'default' } },
+            h('span', { style: { fontSize: 13.5 } }, label),
+            h('span', { className: 'mono', style: { fontSize: 13 } },
+              h('span', { style: { color: 'var(--text-mute)' } }, `${a}% \u2192 `),
+              h('span', null, `${r}%`),
+              h('span', { style: { marginLeft: 8, color: flat ? 'var(--text-mute)' : better ? 'var(--good-text)' : 'var(--bad-text)' } },
+                flat ? '\u00b7' : `${diff > 0 ? '+' : ''}${diff}`)));
+        }),
+        h('p', { style: { margin: '10px 0 0', fontSize: 12.5, color: 'var(--text-mute)', lineHeight: 1.5 } },
+          `9+ is ${pctOf(recent.ten + recent.nine, recent.total)}% recently against ${pctOf(allTime.ten + allTime.nine, allTime.total)}% all time.`))));
+
+  if (withB.length === 0) {
+    return h(React.Fragment, null,
+      summary,
+      h('div', { className: 'empty' }, allTime
+        ? 'Per-session breakdown needs the shot-by-shot calculator or the optional breakdown fields.'
+        : 'No shot-value breakdown recorded yet. Fill in the optional breakdown when logging a session to see this.'));
+  }
   const selected = withB.find(s => s.id === selId) || withB[0];
   const stats = breakdownStats(selected.shotBreakdown);
   const chartData = [['10', stats.ten], ['9', stats.nine], ['8', stats.eight], ['7', stats.seven], ['6', stats.six], ['≤5', stats.fiveDown]].map(([label, value]) => ({ label, value }));
   return h(React.Fragment, null,
+    summary,
+    h('div', { className: 'section-label' }, 'By session'),
     h('div', { className: 'field' }, h('label', { className: 'label' }, 'Session'),
       h('select', { className: 'select', value: selected.id, onChange: e => setSelId(Number(e.target.value)) },
         withB.map(s => h('option', { key: s.id, value: s.id }, `${fmtLong(s.date)} · ${s.totalScore}`)))),
@@ -1435,11 +1577,42 @@ function CompetitionDetail({ comp, onBack, onDeleted }) {
 }
 
 /* ---------- Session detail ---------- */
-function SessionDetail({ session, onBack, allSessions }) {
+function SessionDetail({ session, onBack, allSessions, onSessionUpdated }) {
+  const [busySheet, setBusySheet] = useState(null);
+  const [addError, setAddError] = useState(null);
+  const addRefs = useRef({});
   const d = deriveSession(session);
   const idx = allSessions.findIndex(s => s.id === session.id);
   const prev = idx > 0 ? allSessions[idx - 1] : null;
   const sheets = sheetList(session);
+
+  // Attach a photo to a sheet of a session that was already saved.
+  function addPhotoToSheet(sheetNumber, file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      const base64 = dataUrl.split(',')[1];
+      const m = /^data:([^;,]+)[;,]/.exec(dataUrl);
+      setBusySheet(sheetNumber);
+      setAddError(null);
+      api.extract(base64, m ? m[1] : 'image/jpeg')
+        .then(result => {
+          if (!result || !result.photoKey) throw new Error('Upload failed');
+          return api.attachPhoto(session.id, sheetNumber, result.photoKey);
+        })
+        .then(updated => {
+          setBusySheet(null);
+          if (onSessionUpdated) onSessionUpdated(updated);
+        })
+        .catch(err => {
+          console.error('Attaching photo failed:', err);
+          setBusySheet(null);
+          setAddError(sheetNumber);
+        });
+    };
+    reader.readAsDataURL(file);
+  }
   const series = sheets.map(x => x.score);
   const strongIdx = series.length ? series.indexOf(Math.max(...series)) : -1;
   const weakIdx = series.length ? series.indexOf(Math.min(...series)) : -1;
@@ -1454,10 +1627,23 @@ function SessionDetail({ session, onBack, allSessions }) {
     h('p', { style: { color: 'var(--text-mute)', fontSize: 13, marginTop: 4 } },
       `${round1(d.percentage)}% · avg ${round1(d.averageScore)} · ${session.xCount || 0} Xs · ${session.discipline || '—'} · ${session.distance || '—'}`),
     session.photoKey && h('div', { style: { marginTop: 14 } }, h('img', { src: `/api/photo?key=${session.photoKey}`, style: { width: '100%', borderRadius: 4, border: '1px solid var(--line)' } })),
-    sheets.some(x => x.photoKey) && h(React.Fragment, null,
+    h(React.Fragment, null,
       h('div', { className: 'section-label' }, 'Sheet photos'),
-      h('div', { className: 'thumb-strip' }, sheets.filter(x => x.photoKey).map((x, i) =>
-        h('img', { key: i, src: `/api/photo?key=${x.photoKey}`, alt: `Sheet ${x.sheet}`, loading: 'lazy' })))),
+      sheets.some(x => x.photoKey) && h('div', { className: 'thumb-strip' }, sheets.filter(x => x.photoKey).map((x, i) =>
+        h('img', { key: i, src: `/api/photo?key=${x.photoKey}`, alt: `Sheet ${x.sheet}`, loading: 'lazy' }))),
+      sheets.filter(x => !x.photoKey).length > 0 && h('div', { className: 'card', style: { marginTop: 8 } },
+        h('p', { style: { fontSize: 12.5, color: 'var(--text-mute)', margin: '0 0 8px' } },
+          'Add the sheet photo if you still have it on your phone:'),
+        sheets.filter(x => !x.photoKey).map(x => h('div', { key: x.sheet, style: { marginBottom: 8 } },
+          h('input', { type: 'file', accept: 'image/*', style: { display: 'none' },
+            ref: el => { addRefs.current[x.sheet] = el; },
+            onChange: e => addPhotoToSheet(x.sheet, e.target.files && e.target.files[0]) }),
+          h('button', { className: 'btn-secondary', style: { padding: '9px', fontSize: 13 },
+            disabled: busySheet === x.sheet,
+            onClick: () => addRefs.current[x.sheet] && addRefs.current[x.sheet].click() },
+            busySheet === x.sheet ? 'Uploading\u2026' : `Add photo for sheet ${x.sheet} (scored ${x.score})`),
+          addError === x.sheet && h('p', { style: { fontSize: 11.5, color: 'var(--bad-text)', margin: '5px 0 0' } },
+            'Upload failed \u2014 tap to try again.'))))),
     series.length > 0 && h(React.Fragment, null,
       h('div', { className: 'section-label' }, `Sheets — ${sheets.length} × ${SHOTS_PER_SHEET} shots`),
       h('div', { className: 'card' }, h(SimpleBarChart, { points: sheets.map(x => ({ label: '#' + x.sheet, value: x.score })), colorFn: i => i === strongIdx ? '#059669' : i === weakIdx ? '#dc2626' : '#d97706' })),
@@ -1558,31 +1744,54 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
   function uploadCropped(i, dataUrl) {
     setCropFor(null);
     const base64 = dataUrl.split(',')[1];
+    // The media type comes from the data URL itself — there is no File object here,
+    // because the crop step hands back a freshly encoded image.
+    const m = /^data:([^;,]+)[;,]/.exec(dataUrl);
+    const mediaType = m ? m[1] : 'image/jpeg';
     // Show the photo straight away, before the upload finishes.
-    updateSheet(i, 'preview', dataUrl);
+    setSheets(s => {
+      const n = [...s];
+      n[i] = { ...n[i], preview: dataUrl, uploadFailed: false, pendingUpload: dataUrl };
+      return n;
+    });
     setUploadingIdx(i);
-    {
-      api.extract(base64, file.type || 'image/jpeg').then(result => {
-        setUploadingIdx(null);
-        setSheets(s => {
-          const n = [...s];
-          const r = result.extracted || {};
-          const counts = {
-            ten: r.tenCount, nine: r.nineCount, eight: r.eightCount,
-            seven: r.sevenCount, six: r.sixCount, fiveDown: r.fiveOrBelowCount,
-          };
-          n[i] = {
-            ...n[i],
-            photoKey: result.photoKey,
-            // Score and shot counts read off this sheet, if the photo could be read.
-            score: n[i].score || (r.totalScore != null ? String(r.totalScore) : ''),
-            extracted: Object.values(counts).some(v => v != null) ? counts : null,
-            readFailed: !!result.extractionError,
-          };
-          return n;
-        });
-      }).catch(() => { setUploadingIdx(null); updateSheet(i, 'readFailed', true); });
-    }
+    api.extract(base64, mediaType).then(result => {
+      setUploadingIdx(null);
+      if (!result || !result.photoKey) throw new Error('No photoKey returned');
+      setSheets(s => {
+        const n = [...s];
+        const r = result.extracted || {};
+        const counts = {
+          ten: r.tenCount, nine: r.nineCount, eight: r.eightCount,
+          seven: r.sevenCount, six: r.sixCount, fiveDown: r.fiveOrBelowCount,
+        };
+        n[i] = {
+          ...n[i],
+          photoKey: result.photoKey,
+          uploadFailed: false,
+          pendingUpload: null,
+          // Score and shot counts read off this sheet, if the photo could be read.
+          score: n[i].score || (r.totalScore != null ? String(r.totalScore) : ''),
+          extracted: Object.values(counts).some(v => v != null) ? counts : null,
+          readFailed: !!result.extractionError,
+        };
+        return n;
+      });
+    }).catch(err => {
+      console.error('Sheet photo upload failed:', err);
+      setUploadingIdx(null);
+      setSheets(s => {
+        const n = [...s];
+        n[i] = { ...n[i], photoKey: null, uploadFailed: true };
+        return n;
+      });
+    });
+  }
+
+  // Retry a photo that failed to upload, using the image already held in state.
+  function retryPhoto(i) {
+    const pending = sheets[i] && (sheets[i].pendingUpload || sheets[i].preview);
+    if (pending) uploadCropped(i, pending);
   }
 
   // Totals are derived from the sheets — no separate typing needed.
@@ -1624,6 +1833,14 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
   }
 
   function handleSave() {
+    // Never let a session save with a photo silently missing.
+    const missing = sheets.filter(s => (s.preview || s.uploadFailed) && !s.photoKey).length;
+    if (missing > 0) {
+      const ok = window.confirm(
+        `${missing} photo${missing > 1 ? "s haven't" : " hasn't"} uploaded yet. ` +
+        `Save anyway? The score${missing > 1 ? 's' : ''} will be kept, but the photo${missing > 1 ? 's' : ''} will be lost.`);
+      if (!ok) return;
+    }
     const sheetObjs = filledSheets.map((s, i) => ({
       sheet: Number(s.sheet) || i + 1, score: parseFloat(s.score),
       shots: s.shots || [], photoKey: s.photoKey || null,
@@ -1712,8 +1929,13 @@ function AddSessionFlow({ onCancel, onSave, existingSessions }) {
             onClick: () => setZoomSrc(s.preview || `/api/photo?key=${s.photoKey}`),
             style: { width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--line)', cursor: 'zoom-in' } }),
           uploadingIdx === i && h('p', { style: { fontSize: 11.5, color: 'var(--text-mute)', margin: '5px 0 0' } }, 'Saving photo…'),
+          s.uploadFailed && uploadingIdx !== i && h('div', {
+            style: { marginTop: 8, padding: '9px 10px', borderRadius: 8, border: '1px solid var(--bad-text)' } },
+            h('p', { style: { fontSize: 12.5, color: 'var(--bad-text)', margin: 0, fontWeight: 600 } }, 'Photo didn\u2019t upload'),
+            h('button', { className: 'btn-secondary', style: { padding: '8px', fontSize: 13, marginTop: 7 }, onClick: () => retryPhoto(i) }, 'Retry upload')),
+          !s.uploadFailed && s.photoKey && uploadingIdx !== i && h('p', { style: { fontSize: 11.5, color: 'var(--good-text)', margin: '5px 0 0' } }, '\u2713 Photo saved'),
           s.extracted && h('p', { style: { fontSize: 11.5, color: 'var(--good-text)', margin: '5px 0 0' } }, 'Shot counts read from this photo — check them on the next step.'),
-          s.readFailed && !s.extracted && h('p', { style: { fontSize: 11.5, color: 'var(--text-mute)', margin: '5px 0 0' } }, 'Photo saved. Couldn\u2019t read the numbers automatically — enter the score above or tap them in.')))),
+          s.readFailed && !s.extracted && !s.uploadFailed && h('p', { style: { fontSize: 11.5, color: 'var(--text-mute)', margin: '5px 0 0' } }, 'Photo saved. Couldn\u2019t read the numbers automatically — enter the score above or tap them in.')))),
       h('button', { className: 'btn-secondary', style: { marginBottom: 14 }, onClick: addSheet }, '+ Add another sheet'),
 
       filledSheets.length > 0 && h('div', { className: 'card', style: { marginBottom: 14 } },

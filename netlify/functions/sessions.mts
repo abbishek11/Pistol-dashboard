@@ -4,9 +4,36 @@ import { getDatabase } from "@netlify/database";
 export default async (req: Request, context: Context) => {
   const db = getDatabase();
 
+  const jsonHeaders = { "content-type": "application/json", "cache-control": "no-store" };
+
   if (req.method === "GET") {
     const rows = await db.sql`SELECT * FROM sessions ORDER BY session_date DESC, id DESC`;
-    return new Response(JSON.stringify(rows), { headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify(rows), { headers: jsonHeaders });
+  }
+
+  // Attach or replace the photo on one sheet of an existing session.
+  if (req.method === "PATCH") {
+    const body = await req.json();
+    const { id, sheet, photoKey } = body ?? {};
+    if (!id || sheet === undefined || sheet === null) {
+      return new Response(JSON.stringify({ error: "Missing id or sheet" }), { status: 400, headers: jsonHeaders });
+    }
+    const [existing] = await db.sql`SELECT series FROM sessions WHERE id = ${id}`;
+    if (!existing) {
+      return new Response(JSON.stringify({ error: "Session not found" }), { status: 404, headers: jsonHeaders });
+    }
+    const series = Array.isArray(existing.series) ? existing.series : [];
+    const updated = series.map((entry: any, index: number) => {
+      const normalised = typeof entry === "number"
+        ? { sheet: index + 1, score: entry, shots: [], photoKey: null }
+        : entry;
+      const sheetNumber = normalised.sheet ?? index + 1;
+      return sheetNumber === Number(sheet) ? { ...normalised, photoKey } : normalised;
+    });
+    const [row] = await db.sql`
+      UPDATE sessions SET series = ${JSON.stringify(updated)} WHERE id = ${id} RETURNING *
+    `;
+    return new Response(JSON.stringify(row), { headers: jsonHeaders });
   }
 
   if (req.method === "POST") {
@@ -24,7 +51,7 @@ export default async (req: Request, context: Context) => {
       )
       RETURNING *
     `;
-    return new Response(JSON.stringify(row), { headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify(row), { headers: jsonHeaders });
   }
 
   if (req.method === "DELETE") {
